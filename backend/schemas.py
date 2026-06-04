@@ -383,3 +383,46 @@ class JournalSystemeRead(ConfiguredBaseModel):
     details: Optional[str] = None
     adresse_ip: Optional[str] = None
     date_action: datetime
+
+
+# ==================== IOT COMMANDES ====================
+
+class CommandePorte(ConfiguredBaseModel):
+    """Commande d'ouverture/fermeture de porte — nécessite un code PIN valide."""
+    action: str     # "ouvrir" | "fermer"
+    code_pin: str   # Code PIN en clair, vérifié côté backend
+
+
+class CommandePorteResponse(ConfiguredBaseModel):
+    message: str
+    etat_verrou: str   # "ouvert" | "verrouille"
+
+
+class CommandeLampe(ConfiguredBaseModel):
+    """Commande d'allumage/extinction d'une lampe."""
+    action: str                                          # "allumer" | "eteindre"
+    intensite_pct: Optional[int] = Field(default=None, ge=0, le=100)
+
+
+class CommandeLampeResponse(ConfiguredBaseModel):
+    message: str
+    etat_lumiere: str   # "allume" | "eteint"
+
+
+class CommandeCamera(ConfiguredBaseModel):
+    """Commande vers une caméra ESP32-CAM."""
+    action: str   # "snapshot" | "enregistrement_on" | "enregistrement_off"
+
+
+class CommandeCameraResponse(ConfiguredBaseModel):
+    message: str
+
+
+class DonneeCapteur(ConfiguredBaseModel):
+    """Données envoyées par un ESP8266 via l'endpoint HTTP fallback."""
+    valeur: float
+    unite: Optional[str] = None
+
+
+class StatutMqtt(ConfiguredBaseModel):
+    mqtt_connecte: bool

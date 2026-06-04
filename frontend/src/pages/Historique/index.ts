@@ -1,0 +1,1 @@
+export { HistoriquePage } from "./Historique"

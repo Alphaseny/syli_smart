@@ -89,6 +89,14 @@ def get_me(current_user: models.Utilisateur = Depends(get_current_active_user)):
 # HELPERS — isolation multi-tenant
 # ===========================================================================
 
+def _filtrer_bureau_employe(query, current_user: models.Utilisateur):
+    """Restreint automatiquement la requête au bureau de l'employé."""
+    if current_user.role == "employe" and current_user.bureau_id:
+        from sqlalchemy import and_
+        query = query.filter(models.Equipement.bureau_id == current_user.bureau_id)
+    return query
+
+
 def _bureau_ou_404(bureau_id: int, entreprise_id: int, db: Session) -> models.Bureau:
     bureau = db.query(models.Bureau).filter(
         models.Bureau.id == bureau_id,
@@ -212,13 +220,13 @@ def list_bureaux(
     current_user: models.Utilisateur = Depends(require_employe),
     db: Session = Depends(get_db),
 ):
-    return (
-        db.query(models.Bureau)
-        .filter(models.Bureau.entreprise_id == current_user.entreprise_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
+    query = db.query(models.Bureau).filter(
+        models.Bureau.entreprise_id == current_user.entreprise_id
     )
+    # Les employés ne voient que les bureaux actifs
+    if current_user.role == "employe":
+        query = query.filter(models.Bureau.etat == True)
+    return query.offset(skip).limit(limit).all()
 
 
 @resource_router.get("/bureaux/{bureau_id}", response_model=schemas.BureauRead)
@@ -370,8 +378,9 @@ def delete_utilisateur(
 ):
     user = _utilisateur_ou_404(user_id, current_user.entreprise_id, db)
     if user.id == current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de supprimer son propre compte.")
-    db.delete(user)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de désactiver son propre compte.")
+    # Désactivation douce — ne supprime pas réellement le compte
+    user.etat = False
     db.commit()
 
 
@@ -390,6 +399,9 @@ def list_equipements(
     query = db.query(models.Equipement).filter(models.Equipement.entreprise_id == current_user.entreprise_id)
     if bureau_id:
         query = query.filter(models.Equipement.bureau_id == bureau_id)
+    # Employé : restreint à son bureau
+    elif current_user.role == "employe" and current_user.bureau_id:
+        query = query.filter(models.Equipement.bureau_id == current_user.bureau_id)
     return query.offset(skip).limit(limit).all()
 
 
@@ -472,14 +484,13 @@ def list_cameras(
     current_user: models.Utilisateur = Depends(require_employe),
     db: Session = Depends(get_db),
 ):
-    return (
+    query = (
         db.query(models.Camera)
         .join(models.Equipement)
         .filter(models.Equipement.entreprise_id == current_user.entreprise_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _filtrer_bureau_employe(query, current_user)
+    return query.offset(skip).limit(limit).all()
 
 
 @resource_router.get("/cameras/{camera_id}", response_model=schemas.CameraRead)
@@ -566,14 +577,13 @@ def list_portes(
     current_user: models.Utilisateur = Depends(require_employe),
     db: Session = Depends(get_db),
 ):
-    return (
+    query = (
         db.query(models.Porte)
         .join(models.Equipement)
         .filter(models.Equipement.entreprise_id == current_user.entreprise_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _filtrer_bureau_employe(query, current_user)
+    return query.offset(skip).limit(limit).all()
 
 
 @resource_router.get("/portes/{porte_id}", response_model=schemas.PorteRead)
@@ -669,14 +679,13 @@ def list_lampes(
     current_user: models.Utilisateur = Depends(require_employe),
     db: Session = Depends(get_db),
 ):
-    return (
+    query = (
         db.query(models.Lampe)
         .join(models.Equipement)
         .filter(models.Equipement.entreprise_id == current_user.entreprise_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _filtrer_bureau_employe(query, current_user)
+    return query.offset(skip).limit(limit).all()
 
 
 @resource_router.get("/lampes/{lampe_id}", response_model=schemas.LampeRead)
@@ -781,14 +790,13 @@ def list_detecteurs(
     current_user: models.Utilisateur = Depends(require_employe),
     db: Session = Depends(get_db),
 ):
-    return (
+    query = (
         db.query(models.Detecteur)
         .join(models.Equipement)
         .filter(models.Equipement.entreprise_id == current_user.entreprise_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    query = _filtrer_bureau_employe(query, current_user)
+    return query.offset(skip).limit(limit).all()
 
 
 @resource_router.get("/detecteurs/{detecteur_id}", response_model=schemas.DetecteurRead)

@@ -1,0 +1,1 @@
+export { LampesPage } from "./Lampes"

@@ -1,0 +1,13 @@
+# Broker MQTT amqtt — configuration pour Smart Bureau
+# Démarrer : .venv\Scripts\amqtt --config mqtt_broker.yaml
+
+listeners:
+  default:
+    type: tcp
+    bind: 0.0.0.0:1883
+    max_connections: 50
+
+auth:
+  allow-anonymous: true
+
+sys_interval: 10

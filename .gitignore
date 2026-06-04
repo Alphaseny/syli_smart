@@ -1,0 +1,30 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.egg-info/
+
+# ── Environnement (ne jamais committer les secrets) ───────────────────────────
+backend/.env
+# backend/.env.example est volontairement inclus (valeurs factices)
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# ── Build / dist ──────────────────────────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

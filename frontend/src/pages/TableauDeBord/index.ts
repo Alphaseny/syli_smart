@@ -1,0 +1,1 @@
+export { TableauDeBordPage } from "./TableauDeBord"

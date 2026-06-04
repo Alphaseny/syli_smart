@@ -1,0 +1,1 @@
+export { PortesPage } from "./Portes"
