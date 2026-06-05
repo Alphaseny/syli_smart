@@ -155,31 +155,6 @@ def commander_porte(
             detail="Cette porte est temporairement verrouillée en raison de trop nombreuses tentatives infructueuses (5 min)."
         )
 
-    # ── Vérification des autorisations granulaires et plages horaires ─────────
-    auth_info = current_user.autorisations or {}
-    
-    # Restriction par bureau
-    bureaux_autorises = auth_info.get("bureaux_autorises")
-    if bureaux_autorises is not None and porte.equipement.bureau_id not in bureaux_autorises:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé : vous n'êtes pas autorisé à accéder à cette pièce."
-        )
-
-    # Restriction plage horaire
-    plage = auth_info.get("plages_horaires")
-    if plage:
-        debut = plage.get("debut", "08:00")
-        fin = plage.get("fin", "18:00")
-        heure_actuelle = now.strftime("%H:%M")
-        if heure_actuelle < debut or heure_actuelle > fin:
-            double_auth = auth_info.get("double_auth_hors_plage", True)
-            if double_auth and not payload.double_auth_validee:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Accès hors plage horaire nécessite une double authentification (reconnaissance faciale requise)."
-                )
-
     # ── Validation PIN ──────────────────────────────────────────────────────
     code_valide = None
 
@@ -318,8 +293,7 @@ def commander_lampe(
             detail=f"La lampe est '{lampe.equipement.etat}' — commande refusée.",
         )
 
-    intensite = payload.intensite_pct if payload.intensite_pct is not None else lampe.intensite_pct
-    commande = {"action": payload.action, "intensite": intensite}
+    commande = {"action": payload.action}
 
     _mqtt_ou_503(
         current_user.entreprise_id,
@@ -329,7 +303,6 @@ def commander_lampe(
     )
 
     lampe.etat_lumiere = "allume" if payload.action == "allumer" else "eteint"
-    lampe.intensite_pct = intensite
 
     # Enregistrer la consommation simulée lors de l'allumage
     if payload.action == "allumer":
@@ -337,7 +310,7 @@ def commander_lampe(
             entreprise_id=current_user.entreprise_id,
             bureau_id=lampe.equipement.bureau_id,
             equipement_id=lampe.equipement.id,
-            valeur_kwh=(intensite / 100.0) * 0.05  # formule réaliste
+            valeur_kwh=0.05,
         ))
 
     _log_mqtt_envoye(db, lampe.equipement, commande)
@@ -345,19 +318,17 @@ def commander_lampe(
         db, current_user,
         f"lampe_{payload.action}",
         "lampe", lampe_id,
-        f"Lampe id={lampe_id} — {payload.action}, intensité={intensite}%",
+        f"Lampe id={lampe_id} — {payload.action}",
         request,
     )
     db.commit()
 
-    # Diffuse le nouvel état à tous les clients WebSocket de l'entreprise
     lamp_ws_manager.broadcast_from_thread(
         current_user.entreprise_id,
         {
             "type": "lamp_update",
             "id": lampe.id,
             "etat_lumiere": lampe.etat_lumiere,
-            "intensite_pct": lampe.intensite_pct,
         },
     )
 
@@ -549,34 +520,11 @@ def commander_porte_rfid(
     if not user.etat:
         raise HTTPException(status_code=401, detail="Compte utilisateur inactif.")
 
-    # Vérifier les horaires et autorisations
-    auth_info = user.autorisations or {}
-    
-    # Restriction bureau
-    bureaux_autorises = auth_info.get("bureaux_autorises")
-    if bureaux_autorises is not None and porte.equipement.bureau_id not in bureaux_autorises:
-        raise HTTPException(status_code=403, detail="Accès refusé pour ce bureau.")
-
-    # Politique plages horaires
-    plage = auth_info.get("plages_horaires")
-    if plage:
-        debut = plage.get("debut", "08:00")
-        fin = plage.get("fin", "18:00")
-        heure_actuelle = now.strftime("%H:%M")
-        if heure_actuelle < debut or heure_actuelle > fin:
-            # Hors plage, même les seniors ont besoin de double auth
-            if not payload.code_pin:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Accès hors plage horaire nécessite la saisie du code PIN."
-                )
-
-    # Si l'utilisateur est un senior, accès direct (RFID seul)
-    if user.role == "senior":
-        # Accès accordé
+    # Si l'utilisateur est un employé, accès direct (RFID seule)
+    if user.role in ("administrateur", "employe"):
         return _accorder_rfid_acces(db, porte, user, "carte_rfid_seule")
 
-    # Sinon (mode dégradé), exige le code PIN
+    # Sinon, exige le code PIN
     if not payload.code_pin:
         # Mode dégradé bascule
         raise HTTPException(

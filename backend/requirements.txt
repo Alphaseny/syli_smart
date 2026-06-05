@@ -9,9 +9,10 @@ python-multipart==0.0.6
 paho-mqtt==2.1.0
 amqtt==0.11.3
 
-# Reconnaissance faciale 
-# pip install cmake
-# pip install dlib
-# pip install face_recognition
+# Reconnaissance faciale (DeepFace — pas de compilation C++ requise)
+deepface
+tf-keras
+opencv-python-headless
 numpy
 Pillow
+httpx

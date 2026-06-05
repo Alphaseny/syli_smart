@@ -7,5 +7,4 @@ export type Lamp = {
   name: string
   location: string
   state: LampState
-  intensite: number
 }

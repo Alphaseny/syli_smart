@@ -307,7 +307,7 @@ def create_utilisateur(
     db: Session = Depends(get_db),
 ):
     role = payload.role.strip().lower()
-    if role not in {"administrateur", "manager", "employe", "visiteur", "senior"}:
+    if role not in {"administrateur", "employe"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rôle invalide.")
     if role != "administrateur" and payload.bureau_id is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="bureau_id est requis pour ce rôle.")
@@ -333,7 +333,7 @@ def create_utilisateur(
         role=role,
         etat=True,
         langue_preferee=payload.langue_preferee or "fr",
-        autorisations=payload.autorisations or {},
+        autorisations=payload.autorisations,
     )
     db.add(user)
     db.commit()
@@ -721,7 +721,6 @@ def create_lampe(
     lampe = models.Lampe(
         equipement_id=equip.id,
         etat_lumiere=payload.etat_lumiere,
-        intensite_pct=payload.intensite_pct,
         mode_auto=payload.mode_auto,
     )
     db.add(lampe)
@@ -740,7 +739,7 @@ def update_lampe(
     lampe = _lampe_ou_404(lampe_id, current_user.entreprise_id, db)
     data = payload.model_dump(exclude_unset=True)
     equip_fields = {"identifiant_mqtt", "adresse_ip", "etat"}
-    lampe_fields = {"etat_lumiere", "intensite_pct", "mode_auto"}
+    lampe_fields = {"etat_lumiere", "mode_auto"}
 
     _appliquer_update_equipement(lampe.equipement, {k: v for k, v in data.items() if k in equip_fields}, db)
     for field, value in data.items():

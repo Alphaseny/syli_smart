@@ -8,7 +8,6 @@ type LampUpdateMessage = {
   type: "lamp_update"
   id: number
   etat_lumiere: "allume" | "eteint"
-  intensite_pct: number
 }
 
 function buildWsUrl(token: string): string {
@@ -49,7 +48,6 @@ export function useLampesWebSocket(): void {
                     state: (data.etat_lumiere === "allume"
                       ? "allumee"
                       : "eteinte") as Lamp["state"],
-                    intensite: data.intensite_pct,
                   }
                 : lamp
             )

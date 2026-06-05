@@ -40,9 +40,9 @@ def _topic(entreprise_id: int, bureau_id: int, identifiant: str, suffixe: str) -
 
 # ─── Callbacks MQTT ───────────────────────────────────────────────────────────
 
-def _on_connect(client, userdata, flags, rc):
+def _on_connect(client, userdata, connect_flags, reason_code, properties):
     global _connected
-    if rc == 0:
+    if reason_code == 0:
         _connected = True
         logger.info("MQTT: connecté au broker.")
         client.subscribe("smartbureau/+/+/+/donnee", qos=1)
@@ -50,14 +50,14 @@ def _on_connect(client, userdata, flags, rc):
         client.subscribe("smartbureau/+/+/+/alerte",  qos=1)
     else:
         _connected = False
-        logger.error(f"MQTT: échec connexion broker, RC={rc}")
+        logger.error(f"MQTT: échec connexion broker, reason_code={reason_code}")
 
 
-def _on_disconnect(client, userdata, rc):
+def _on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
     global _connected
     _connected = False
-    if rc != 0:
-        logger.warning(f"MQTT: déconnexion inattendue RC={rc} — reconnexion auto en cours...")
+    if reason_code != 0:
+        logger.warning(f"MQTT: déconnexion inattendue reason_code={reason_code} — reconnexion auto en cours...")
 
 
 def _on_message(client, userdata, msg):
@@ -218,8 +218,10 @@ def start_mqtt() -> None:
     port = int(os.getenv("MQTT_PORT", "1883"))
     username = os.getenv("MQTT_USERNAME", "")
     password = os.getenv("MQTT_PASSWORD", "")
+    use_tls = port == 8883  # HiveMQ Cloud et brokers publics utilisent TLS sur 8883
 
     _client = mqtt.Client(
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
         client_id="smartbureau_backend",
         clean_session=True,
         protocol=mqtt.MQTTv311,
@@ -231,10 +233,14 @@ def start_mqtt() -> None:
     if username:
         _client.username_pw_set(username, password)
 
+    if use_tls:
+        import ssl
+        _client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS)
+
     try:
         _client.connect(host, port, keepalive=60)
         _client.loop_start()
-        logger.info(f"MQTT: client démarré → {host}:{port}")
+        logger.info(f"MQTT: client démarré → {host}:{port} (TLS={use_tls})")
     except Exception:
         logger.exception(
             "MQTT: impossible de se connecter au broker. "

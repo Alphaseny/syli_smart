@@ -52,7 +52,7 @@ class Utilisateur(Base):
     prenom = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, nullable=False)
     mot_de_passe = Column(String(255), nullable=False)
-    role = Column(String(30), nullable=False)  # 'administrateur' | 'manager' | 'employe' | 'visiteur' | 'senior'
+    role = Column(String(30), nullable=False)  # 'administrateur' | 'employe'
     etat = Column(Boolean, nullable=False, default=True)
     langue_preferee = Column(String(10), nullable=False, default="fr")
     autorisations = Column(JSONB, nullable=True)
@@ -144,7 +144,6 @@ class Lampe(Base):
     id = Column(Integer, primary_key=True, index=True)
     equipement_id = Column(Integer, ForeignKey("equipements.id", ondelete="CASCADE"), unique=True, nullable=False)
     etat_lumiere = Column(String(20), nullable=False, default="eteint")
-    intensite_pct = Column(SmallInteger, nullable=False, default=100)
     mode_auto = Column(Boolean, nullable=False, default=False)
 
     equipement = relationship("Equipement", back_populates="lampe")
@@ -304,6 +303,7 @@ class Rappel(Base):
     titre = Column(String(150), nullable=False)
     description = Column(Text, nullable=True)
     date_rappel = Column(DateTime(timezone=True), nullable=False)
+    type_rapel = Column(String(20), nullable=False)
     execute = Column(Boolean, nullable=False, default=False)
     date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

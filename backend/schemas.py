@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -82,7 +82,7 @@ class UtilisateurCreate(ConfiguredBaseModel):
     prenom: str
     email: str
     mot_de_passe: str
-    role: str  # 'administrateur' | 'manager' | 'employe' | 'visiteur' | 'senior'
+    role: str  # 'administrateur' | 'employe'
     bureau_id: Optional[int] = None
     langue_preferee: Optional[str] = "fr"
     autorisations: Optional[dict] = None
@@ -216,7 +216,6 @@ class LampeCreate(ConfiguredBaseModel):
     adresse_ip: Optional[str] = None
     etat: str = "inactif"
     etat_lumiere: str = "eteint"  # allume, eteint
-    intensite_pct: int = Field(default=100, ge=0, le=100)
     mode_auto: bool = False
 
 
@@ -225,7 +224,6 @@ class LampeUpdate(ConfiguredBaseModel):
     adresse_ip: Optional[str] = None
     etat: Optional[str] = None
     etat_lumiere: Optional[str] = None
-    intensite_pct: Optional[int] = Field(default=None, ge=0, le=100)
     mode_auto: Optional[bool] = None
 
 
@@ -233,7 +231,6 @@ class LampeRead(ConfiguredBaseModel):
     id: int
     equipement_id: int
     etat_lumiere: str
-    intensite_pct: int
     mode_auto: bool
     equipement: EquipementRead
 
@@ -409,8 +406,7 @@ class CommandePorteResponse(ConfiguredBaseModel):
 
 class CommandeLampe(ConfiguredBaseModel):
     """Commande d'allumage/extinction d'une lampe."""
-    action: str                                          # "allumer" | "eteindre"
-    intensite_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    action: str   # "allumer" | "eteindre"
 
 
 class CommandeLampeResponse(ConfiguredBaseModel):
@@ -506,12 +502,14 @@ class RappelCreate(ConfiguredBaseModel):
     titre: str
     description: Optional[str] = None
     date_rappel: datetime
+    type_rapel: str  # ex: 'alerte', 'fumee', 'mot_de_passe', 'autre'
 
 
 class RappelUpdate(ConfiguredBaseModel):
     titre: Optional[str] = None
     description: Optional[str] = None
     date_rappel: Optional[datetime] = None
+    type_rapel: Optional[str] = None
     execute: Optional[bool] = None
 
 
@@ -522,6 +520,7 @@ class RappelRead(ConfiguredBaseModel):
     titre: str
     description: Optional[str] = None
     date_rappel: datetime
+    type_rapel: str
     execute: bool
     date_creation: datetime
 
