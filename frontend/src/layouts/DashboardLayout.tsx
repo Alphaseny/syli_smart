@@ -1,3 +1,4 @@
+import { NotificationsBell } from "@/components/NotificationsBell"
 import { VoiceControl } from "@/components/VoiceControl"
 import { useAuthContext } from "@/contexts/auth-context"
 import { useRole } from "@/hooks/useRole"
@@ -8,12 +9,14 @@ import {
   Clock3,
   DoorClosedLocked,
   DoorOpen,
+  Heart,
   Home,
   Lightbulb,
   LogOut,
   Settings,
   Users,
   Video,
+  Zap,
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 
@@ -30,6 +33,8 @@ const navItems: NavItem[] = [
   { to: "/cameras", label: "Caméras", icon: Video },
   { to: "/doors", label: "Portes", icon: DoorOpen },
   { to: "/lights", label: "Lampes", icon: Lightbulb },
+  { to: "/energy", label: "Énergie", icon: Zap },
+  { to: "/wellness", label: "Bien-être", icon: Heart },
   {
     to: "/bureau",
     label: "Bureaux",
@@ -128,9 +133,9 @@ export function DashboardLayout() {
               <p className="text-xs font-bold tracking-[0.3em] text-primary uppercase">
                 Tableau de bord
               </p>
-
               <h1 className="text-xl font-semibold">Espace de supervision</h1>
             </div>
+            <NotificationsBell />
           </div>
 
           <Outlet />
