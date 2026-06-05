@@ -17,33 +17,34 @@ Contrôlez à distance vos portes, lampes et caméras depuis n'importe quel navi
 
 ## Qui peut faire quoi
 
-| Action | Administrateur | Employé |
-|--------|:-:|:-:|
-| Gérer les utilisateurs et bureaux | ✅ | ❌ |
-| Voir et contrôler tous les équipements | ✅ | Son bureau seulement |
-| Ouvrir une porte (code PIN requis) | ✅ | Son bureau seulement |
-| Allumer / éteindre une lampe | ✅ | Son bureau seulement |
-| Caméras (snapshot, enregistrement) | ✅ | ❌ |
-| Voir et traiter les alertes | ✅ | ✅ |
-| Voir l'historique des accès | ✅ | ✅ |
+| Action                                 | Administrateur |       Employé        |
+| -------------------------------------- | :------------: | :------------------: |
+| Gérer les utilisateurs et bureaux      |       ✅       |          ❌          |
+| Voir et contrôler tous les équipements |       ✅       | Son bureau seulement |
+| Ouvrir une porte (code PIN requis)     |       ✅       | Son bureau seulement |
+| Allumer / éteindre une lampe           |       ✅       | Son bureau seulement |
+| Caméras (snapshot, enregistrement)     |       ✅       |          ❌          |
+| Voir et traiter les alertes            |       ✅       |          ✅          |
+| Voir l'historique des accès            |       ✅       |          ✅          |
 
 ---
 
 ## Technologies utilisées
 
-| Partie | Technologie |
-|--------|------------|
-| Interface web | React + TypeScript |
-| Serveur API | FastAPI (Python) |
-| Base de données | PostgreSQL |
-| Communication IoT | MQTT (Mosquitto) |
-| Microcontrôleur | ESP8266 |
+| Partie            | Technologie        |
+| ----------------- | ------------------ |
+| Interface web     | React + TypeScript |
+| Serveur API       | FastAPI (Python)   |
+| Base de données   | PostgreSQL         |
+| Communication IoT | MQTT (Mosquitto)   |
+| Microcontrôleur   | ESP8266            |
 
 ---
 
 ## Installation rapide
 
 ### Prérequis
+
 - Python 3.11+
 - Node.js 18+
 - PostgreSQL
@@ -65,7 +66,7 @@ copy .env.example .env   # puis éditer le fichier .env
 Contenu du fichier `.env` :
 
 ```
-DATABASE_URL=postgresql://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/smart_bureau_v
+DATABASE_URL=postgresql://postgres:mdp@localhost:5432/smart_bureau_v
 JWT_SECRET_KEY=une-cle-longue-et-aleatoire
 MQTT_HOST=localhost
 MQTT_PORT=1883
@@ -85,6 +86,7 @@ npm install
 Double-cliquer sur **`demarrer.bat`** à la racine du projet.
 
 Deux fenêtres s'ouvrent automatiquement :
+
 - Le broker MQTT (Mosquitto)
 - Le serveur backend (FastAPI)
 
@@ -111,11 +113,11 @@ Ouvrir `esp8266/smart_bureau.ino` dans l'Arduino IDE et renseigner :
 #define BUREAU_ID    "1"             // ID du bureau contrôlé
 ```
 
-| Broche ESP8266 | Équipement |
-|---|---|
-| D2 | Servo (serrure de porte) |
-| D1 | Relais (lampe) |
-| D5 | Capteur de mouvement (PIR) |
-| A0 | Capteur de fumée/gaz (MQ-2) |
-| D6 | Capteur température (DHT11) |
-| D7 | Buzzer d'alarme |
+| Broche ESP8266 | Équipement                  |
+| -------------- | --------------------------- |
+| D2             | Servo (serrure de porte)    |
+| D1             | Relais (lampe)              |
+| D5             | Capteur de mouvement (PIR)  |
+| A0             | Capteur de fumée/gaz (MQ-2) |
+| D6             | Capteur température (DHT11) |
+| D7             | Buzzer d'alarme             |

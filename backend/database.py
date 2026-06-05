@@ -1,41 +1,61 @@
 import logging
 import os
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def get_database_url() -> str:
-    env_url = os.getenv("DATABASE_URL")
-    if not env_url:
-        logger.warning("DATABASE_URL non défini. Utilisation du fallback local.")
-        env_url = "postgresql://postgres:&&&&@localhost:5432/smart_bureau_v"
+def obtenir_url_base() -> str:
+    url = os.getenv("DATABASE_URL", "").strip()
 
-    if env_url.strip() == "" or "example" in env_url.lower():
-        raise ValueError(
-            "DATABASE_URL contient une valeur placeholder invalide. Vérifiez .env ou .env.example."
-        )
+    if not url:
+        logger.warning("DATABASE_URL non défini — fallback local.")
+        url = "postgresql://postgres:password@localhost:5432/smart_bureau_v"
 
-    # Utilise psycopg v3 (psycopg[binary]) — remplace le schéma générique si besoin
-    if env_url.startswith("postgresql://") or env_url.startswith("postgres://"):
-        env_url = env_url.replace("postgresql://", "postgresql+psycopg://", 1)
-        env_url = env_url.replace("postgres://", "postgresql+psycopg://", 1)
+    # Forcer psycopg v3 (installé) — jamais psycopg2
+    url = url.replace("postgresql+psycopg2://", "postgresql+psycopg://")
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
 
-    return env_url
+    # Ajouter SSL automatiquement pour les bases distantes (Supabase, etc.)
+    is_local = "localhost" in url or "127.0.0.1" in url
+    if not is_local and "sslmode" not in url:
+        sep = "&" if "?" in url else "?"
+        url += f"{sep}sslmode=require"
+
+    return url
 
 
-DATABASE_URL = get_database_url()
-engine = create_engine(DATABASE_URL, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
-Base = declarative_base()
+DATABASE_URL = obtenir_url_base()
+
+engine = create_engine(
+    DATABASE_URL,
+    future=True,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True,
+)
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def get_db():
+    """Dépendance FastAPI — fournit une session de base de données."""
     db = SessionLocal()
     try:
         yield db
