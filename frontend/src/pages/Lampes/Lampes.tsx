@@ -14,7 +14,7 @@ import { useLampes } from "./hooks/useLampes"
 export function LampesPage() {
   const { estAdmin } = useRole()
   const { data, isLoading, error } = useLampes()
-  useLampesWebSocket() // mise à jour temps réel via WebSocket
+  useLampesWebSocket()
   const creer = useCreerLampe()
 
   const [modalOuvert, setModalOuvert] = useState(false)
@@ -22,7 +22,6 @@ export function LampesPage() {
   const [form, setForm] = useState({
     bureauId: "",
     identifiantMqtt: "",
-    intensitePct: 100,
     modeAuto: false,
   })
   const [erreur, setErreur] = useState("")
@@ -41,13 +40,12 @@ export function LampesPage() {
       {
         bureauId: Number(form.bureauId),
         identifiantMqtt: form.identifiantMqtt.trim(),
-        intensitePct: form.intensitePct,
         modeAuto: form.modeAuto,
       },
       {
         onSuccess: () => {
           setModalOuvert(false)
-          setForm({ bureauId: "", identifiantMqtt: "", intensitePct: 100, modeAuto: false })
+          setForm({ bureauId: "", identifiantMqtt: "", modeAuto: false })
           setErreur("")
         },
         onError: (err) => setErreur(err.message),
@@ -84,7 +82,6 @@ export function LampesPage() {
         {data?.map((lamp) => <LampeControl key={lamp.id} lampe={lamp} />)}
       </div>
 
-      {/* Modal création lampe (admin) */}
       <Modal ouvert={modalOuvert} onFermer={() => setModalOuvert(false)} titre="Ajouter une lampe">
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -109,17 +106,6 @@ export function LampesPage() {
               onChange={(e) => setForm({ ...form, identifiantMqtt: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">Doit correspondre exactement au firmware ESP8266.</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Intensité par défaut (%)</Label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={form.intensitePct}
-              onChange={(e) => setForm({ ...form, intensitePct: Number(e.target.value) })}
-            />
           </div>
 
           <div className="flex items-center gap-2">

@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { type Utilisateur } from "@/types/user"
-import { Camera, CheckCircle, CreditCard, Pencil, UserX } from "lucide-react"
+import { Camera, CreditCard, Pencil, UserX } from "lucide-react"
 import { type UtilisateurEnrole } from "../services/reconnaissance.service"
 
 type BureauOption = { id: string; nomBureau: string }
@@ -46,7 +46,11 @@ export function TableauUtilisateurs({
     utilisateursEnroles.some((e) => String(e.utilisateur_id) === userId)
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Chargement des utilisateurs...</p>
+    return (
+      <p className="text-sm text-muted-foreground">
+        Chargement des utilisateurs...
+      </p>
+    )
   }
 
   return (
@@ -59,7 +63,7 @@ export function TableauUtilisateurs({
             <TableHead>Rôle</TableHead>
             <TableHead>Bureau</TableHead>
             <TableHead>Statut</TableHead>
-            <TableHead>Visage</TableHead>
+            {/* <TableHead>Visage</TableHead> */}
             <TableHead>RFID</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -67,7 +71,10 @@ export function TableauUtilisateurs({
         <TableBody>
           {utilisateurs.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+              <TableCell
+                colSpan={7}
+                className="py-8 text-center text-muted-foreground"
+              >
                 Aucun utilisateur trouvé.
               </TableCell>
             </TableRow>
@@ -91,7 +98,7 @@ export function TableauUtilisateurs({
                 </TableCell>
 
                 {/* Colonne reconnaissance faciale */}
-                <TableCell>
+                {/* <TableCell>
                   {estEnrole(user.id) ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-green-600">
                       <CheckCircle className="h-3.5 w-3.5" /> Enregistré
@@ -99,7 +106,7 @@ export function TableauUtilisateurs({
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
-                </TableCell>
+                </TableCell> */}
 
                 {/* Colonne RFID (bouton gérer) */}
                 <TableCell>
@@ -120,7 +127,7 @@ export function TableauUtilisateurs({
                       type="button"
                       onClick={() => onEdit(user)}
                       title="Modifier l'utilisateur"
-                      className="inline-flex items-center gap-2 rounded-[3px] border border-border bg-secondary px-3 py-2 text-sm text-secondary-foreground transition hover:bg-secondary/80"
+                      className="inline-flex items-center gap-2 rounded-[3px] border border-border  px-2 py-1 text-sm bg-amber-500 text-white  transition hover:bg-secondary/80"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -129,7 +136,11 @@ export function TableauUtilisateurs({
                     <button
                       type="button"
                       onClick={() => onGererVisage(user)}
-                      title={estEnrole(user.id) ? "Gérer le visage enregistré" : "Enregistrer le visage"}
+                      title={
+                        estEnrole(user.id)
+                          ? "Gérer le visage enregistré"
+                          : "Enregistrer le visage"
+                      }
                       className={`inline-flex items-center gap-2 rounded-[3px] border px-3 py-2 text-sm transition ${
                         estEnrole(user.id)
                           ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
@@ -144,7 +155,11 @@ export function TableauUtilisateurs({
                         type="button"
                         disabled={supprimerEnCours}
                         onClick={() => {
-                          if (window.confirm(`Désactiver le compte de ${user.fullName} ?\nL'utilisateur ne pourra plus se connecter.`))
+                          if (
+                            window.confirm(
+                              `Désactiver le compte de ${user.fullName} ?\nL'utilisateur ne pourra plus se connecter.`
+                            )
+                          )
                             onDelete(user)
                         }}
                         title="Désactiver ce compte"
@@ -153,7 +168,9 @@ export function TableauUtilisateurs({
                         <UserX className="h-4 w-4" />
                       </button>
                     ) : (
-                      <span className="px-3 py-2 text-xs text-muted-foreground">Inactif</span>
+                      <span className="px-3 py-2 text-xs text-muted-foreground">
+                        Inactif
+                      </span>
                     )}
                   </div>
                 </TableCell>

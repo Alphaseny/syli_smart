@@ -52,14 +52,14 @@ export function TableauDeBordPage() {
             <div className="mt-5 space-y-3">
               <div className="flex items-end gap-2">
                 <span className="text-3xl font-bold">
-                  {energie.consommation.total_kwh.toFixed(2)}
+                  {(energie.consommation.total_kwh ?? 0).toFixed(2)}
                 </span>
                 <span className="mb-1 text-sm text-muted-foreground">kWh</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Coût estimé :{" "}
                 <span className="font-medium text-foreground">
-                  {energie.consommation.cout_estime.toFixed(0)} GNF
+                  {(energie.consommation.cout_estime ?? 0).toFixed(0)} GNF
                 </span>
               </p>
               {energie.recommandations[0] && (

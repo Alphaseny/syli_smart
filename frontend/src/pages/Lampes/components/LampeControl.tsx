@@ -42,39 +42,27 @@ export function LampeControl({ lampe }: Props) {
         </div>
       </div>
 
-      {/* Intensité + actions */}
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          Intensité : {lampe.intensite}%
-        </p>
-        <div className="flex items-center gap-2">
-          {estAdmin && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => supprimer.mutate(lampe.rawId)}
-              disabled={supprimer.isPending}
-              title="Supprimer cette lampe"
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          )}
+      <div className="mt-5 flex items-center justify-end gap-2">
+        {estAdmin && (
           <Button
-            variant={estAllumee ? "outline" : "default"}
-            size="sm"
-            onClick={() =>
-              commander.mutate({ id: lampe.rawId, action, intensitePct: lampe.intensite })
-            }
-            disabled={commander.isPending}
+            variant="ghost"
+            size="icon"
+            onClick={() => supprimer.mutate(lampe.rawId)}
+            disabled={supprimer.isPending}
+            title="Supprimer cette lampe"
           >
-            <Power className="h-4 w-4" />
-            {commander.isPending
-              ? "Envoi..."
-              : estAllumee
-                ? "Éteindre"
-                : "Allumer"}
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
-        </div>
+        )}
+        <Button
+          variant={estAllumee ? "outline" : "default"}
+          size="sm"
+          onClick={() => commander.mutate({ id: lampe.rawId, action })}
+          disabled={commander.isPending}
+        >
+          <Power className="h-4 w-4" />
+          {commander.isPending ? "Envoi..." : estAllumee ? "Éteindre" : "Allumer"}
+        </Button>
       </div>
     </div>
   )

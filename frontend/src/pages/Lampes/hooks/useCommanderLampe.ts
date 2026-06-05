@@ -7,12 +7,10 @@ export function useCommanderLampe() {
     mutationFn: ({
       id,
       action,
-      intensitePct,
     }: {
       id: number
       action: "allumer" | "eteindre"
-      intensitePct?: number
-    }) => commanderLampe(id, action, intensitePct),
+    }) => commanderLampe(id, action),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["lampes"] }),
   })
 }
