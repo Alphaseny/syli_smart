@@ -47,6 +47,7 @@ export type NouvelleCamera = {
   adresseIp?: string
   resolution?: string
   lienFluxVideo?: string
+  lienSnapshot?: string
 }
 
 export async function creerCamera(payload: NouvelleCamera): Promise<Camera> {
@@ -58,16 +59,18 @@ export async function creerCamera(payload: NouvelleCamera): Promise<Camera> {
       adresse_ip: payload.adresseIp ?? null,
       etat: "actif",
       resolution: payload.resolution ?? "640x480",
-      lien_flux_video: payload.lienFluxVideo
-        ? payload.lienFluxVideo
-        : payload.adresseIp
-          ? `http://${payload.adresseIp}/stream`
-          : null,
-      lien_snapshot: payload.adresseIp ? `http://${payload.adresseIp}/capture` : null,
+      lien_flux_video: payload.lienFluxVideo || (payload.adresseIp ? `http://${payload.adresseIp}/stream` : null),
+      lien_snapshot: payload.lienSnapshot || (payload.adresseIp ? `http://${payload.adresseIp}/capture` : null),
       enregistrement_actif: false,
     }),
   })
   return transformerCamera(c)
+}
+
+export async function pingCamera(
+  id: number,
+): Promise<{ camera_id: number; en_ligne: boolean; raison: string }> {
+  return apiClient(`/cameras/${id}/ping`, { method: "POST" })
 }
 
 export async function supprimerCamera(id: number): Promise<void> {
