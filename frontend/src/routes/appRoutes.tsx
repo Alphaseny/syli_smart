@@ -3,7 +3,6 @@ import { useRole } from "@/hooks/useRole"
 import { AuthLayout } from "@/layouts/AuthLayout"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { AlertesPage } from "@/pages/Alertes"
-import { BienEtrePage } from "@/pages/BienEtre"
 import Bureau from "@/pages/Bureaux/Bureau"
 import { CamerasPage } from "@/pages/Cameras"
 import { ConnexionPage } from "@/pages/Connexion"
@@ -65,7 +64,6 @@ export function AppRoutes() {
         <Route path="/doors" element={<PortesPage />} />
         <Route path="/lights" element={<LampesPage />} />
         <Route path="/energy" element={<EnergiePage />} />
-        <Route path="/wellness" element={<BienEtrePage />} />
         <Route path="/alerts" element={<AlertesPage />} />
         <Route path="/history" element={<HistoriquePage />} />
         <Route path="/settings" element={<ParametresPage />} />

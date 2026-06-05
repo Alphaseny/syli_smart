@@ -1,5 +1,4 @@
 import { NotificationsBell } from "@/components/NotificationsBell"
-import { VoiceControl } from "@/components/VoiceControl"
 import { useAuthContext } from "@/contexts/auth-context"
 import { useRole } from "@/hooks/useRole"
 import { cn } from "@/lib/utils"
@@ -9,7 +8,6 @@ import {
   Clock3,
   DoorClosedLocked,
   DoorOpen,
-  Heart,
   Home,
   Lightbulb,
   LogOut,
@@ -34,7 +32,6 @@ const navItems: NavItem[] = [
   { to: "/doors", label: "Portes", icon: DoorOpen },
   { to: "/lights", label: "Lampes", icon: Lightbulb },
   { to: "/energy", label: "Énergie", icon: Zap },
-  { to: "/wellness", label: "Bien-être", icon: Heart },
   {
     to: "/bureau",
     label: "Bureaux",
@@ -142,8 +139,6 @@ export function DashboardLayout() {
         </main>
       </div>
 
-      {/* Bouton commande vocale — flottant en bas à droite */}
-      <VoiceControl />
     </div>
   )
 }
