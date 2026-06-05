@@ -25,6 +25,9 @@ build/
 *.log
 logs/
 
+# ── Modèles Vosk (trop volumineux pour git) ───────────────────────────────────
+backend/models/
+
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

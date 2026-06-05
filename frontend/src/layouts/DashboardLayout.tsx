@@ -1,3 +1,4 @@
+import { VoiceControl } from "@/components/VoiceControl"
 import { useAuthContext } from "@/contexts/auth-context"
 import { useRole } from "@/hooks/useRole"
 import { cn } from "@/lib/utils"
@@ -135,6 +136,9 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Bouton commande vocale — flottant en bas à droite */}
+      <VoiceControl />
     </div>
   )
 }
