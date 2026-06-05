@@ -175,11 +175,21 @@ def _traiter_statut(db, equip, payload: dict):
         if etat_verrou in ("ouvert", "verrouille", "en_attente"):
             equip.porte.etat_verrou = etat_verrou
 
-    # Synchronisation état lampe
+    # Synchronisation état lampe + diffusion WebSocket
     if equip.lampe:
         etat_lumiere = payload.get("etat_lumiere")
         if etat_lumiere in ("allume", "eteint"):
             equip.lampe.etat_lumiere = etat_lumiere
+            from ws_manager import lamp_ws_manager
+            lamp_ws_manager.broadcast_from_thread(
+                equip.entreprise_id,
+                {
+                    "type": "lamp_update",
+                    "id": equip.lampe.id,
+                    "etat_lumiere": etat_lumiere,
+                    "intensite_pct": equip.lampe.intensite_pct,
+                },
+            )
 
 
 def _traiter_alerte_hardware(db, equip, payload: dict):

@@ -21,6 +21,7 @@ from auth import require_employe, require_admin
 from database import get_db
 from mqtt_service import publier_commande, est_connecte
 from security import verify_password
+from ws_manager import lamp_ws_manager
 
 iot_router = APIRouter(prefix="/iot", tags=["IoT — Commandes temps réel"])
 
@@ -275,6 +276,17 @@ def commander_lampe(
         request,
     )
     db.commit()
+
+    # Diffuse le nouvel état à tous les clients WebSocket de l'entreprise
+    lamp_ws_manager.broadcast_from_thread(
+        current_user.entreprise_id,
+        {
+            "type": "lamp_update",
+            "id": lampe.id,
+            "etat_lumiere": lampe.etat_lumiere,
+            "intensite_pct": lampe.intensite_pct,
+        },
+    )
 
     return {
         "message": f"Lampe {'allumée' if payload.action == 'allumer' else 'éteinte'} avec succès.",

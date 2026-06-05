@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Modal } from "@/components/ui/modal"
+import { useLampesWebSocket } from "@/hooks/useLampesWebSocket"
 import { useRole } from "@/hooks/useRole"
 import { recupererBureaux, type Bureau } from "@/pages/Bureaux/services/bureau.service"
 import { Plus } from "lucide-react"
@@ -13,6 +14,7 @@ import { useLampes } from "./hooks/useLampes"
 export function LampesPage() {
   const { estAdmin } = useRole()
   const { data, isLoading, error } = useLampes()
+  useLampesWebSocket() // mise à jour temps réel via WebSocket
   const creer = useCreerLampe()
 
   const [modalOuvert, setModalOuvert] = useState(false)
