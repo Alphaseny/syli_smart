@@ -11,6 +11,7 @@ import { InscriptionPage } from "@/pages/Inscription"
 import { LampesPage } from "@/pages/Lampes"
 import { MotDePasseOubliePage } from "@/pages/MotDePasseOublie"
 import { PortesPage } from "@/pages/Portes"
+import { ParametresPage } from "@/pages/Parametres"
 import { TableauDeBordPage } from "@/pages/TableauDeBord"
 import { UtilisateursPage } from "@/pages/Utilisateurs"
 import { Navigate, Route, Routes } from "react-router-dom"
@@ -63,6 +64,8 @@ export function AppRoutes() {
         <Route path="/lights" element={<LampesPage />} />
         <Route path="/alerts" element={<AlertesPage />} />
         <Route path="/history" element={<HistoriquePage />} />
+
+        <Route path="/settings" element={<ParametresPage />} />
 
         {/* Routes réservées aux administrateurs */}
         <Route path="/users" element={<RouteAdminSeulement><UtilisateursPage /></RouteAdminSeulement>} />

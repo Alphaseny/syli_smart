@@ -27,7 +27,7 @@ export function LampesPage() {
 
   useEffect(() => {
     if (modalOuvert) {
-      recupererBureaux().then(setBureaux).catch(() => {})
+      recupererBureaux().then((bs) => setBureaux(bs.filter((b) => b.etat))).catch(() => {})
     }
   }, [modalOuvert])
 

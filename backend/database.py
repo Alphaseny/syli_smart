@@ -34,12 +34,17 @@ def obtenir_url_base() -> str:
 
 DATABASE_URL = obtenir_url_base()
 
+is_local = "localhost" in DATABASE_URL or "127.0.0.1" in DATABASE_URL
+
 engine = create_engine(
     DATABASE_URL,
     future=True,
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
+    # PgBouncer (pooler Supabase) en mode transaction ne supporte pas
+    # les prepared statements — on les désactive pour les connexions distantes.
+    connect_args={} if is_local else {"prepare_threshold": None},
 )
 
 SessionLocal = sessionmaker(

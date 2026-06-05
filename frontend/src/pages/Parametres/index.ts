@@ -1,0 +1,1 @@
+export { ParametresPage } from "./Parametres"

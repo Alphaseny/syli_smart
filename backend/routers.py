@@ -185,8 +185,8 @@ def _appliquer_update_equipement(equip: models.Equipement, data: dict, db: Sessi
 # ENTREPRISE
 # ===========================================================================
 
-@resource_router.get("/entreprises", response_model=schemas.EntrepriseRead, dependencies=[Depends(require_admin)])
-def get_entreprise(current_user: models.Utilisateur = Depends(require_admin), db: Session = Depends(get_db)):
+@resource_router.get("/entreprises", response_model=schemas.EntrepriseRead)
+def get_entreprise(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
     entreprise = db.query(models.Entreprise).filter(models.Entreprise.id == current_user.entreprise_id).first()
     if not entreprise:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entreprise non trouvée.")

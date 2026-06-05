@@ -1,6 +1,7 @@
 import { useAuthContext } from "@/contexts/auth-context"
 import { useRole } from "@/hooks/useRole"
 import { cn } from "@/lib/utils"
+import { useEntreprise } from "@/pages/Parametres/hooks/useEntreprise"
 import {
   Bell,
   Clock3,
@@ -9,47 +10,72 @@ import {
   Home,
   Lightbulb,
   LogOut,
+  Settings,
   Users,
   Video,
 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 
-type NavItem = { to: string; label: string; icon: React.ElementType; adminSeulement?: boolean }
+type NavItem = {
+  to: string
+  label: string
+  icon: React.ElementType
+  adminSeulement?: boolean
+}
 
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Tableau de bord", icon: Home },
-  { to: "/users",     label: "Utilisateurs",    icon: Users,          adminSeulement: true },
-  { to: "/cameras",   label: "Caméras",          icon: Video },
-  { to: "/doors",     label: "Portes",            icon: DoorOpen },
-  { to: "/lights",    label: "Lampes",            icon: Lightbulb },
-  { to: "/bureau",    label: "Bureaux",           icon: DoorClosedLocked, adminSeulement: true },
-  { to: "/alerts",    label: "Alertes",           icon: Bell },
-  { to: "/history",   label: "Historique",        icon: Clock3 },
+  { to: "/users", label: "Utilisateurs", icon: Users, adminSeulement: true },
+  { to: "/cameras", label: "Caméras", icon: Video },
+  { to: "/doors", label: "Portes", icon: DoorOpen },
+  { to: "/lights", label: "Lampes", icon: Lightbulb },
+  {
+    to: "/bureau",
+    label: "Bureaux",
+    icon: DoorClosedLocked,
+    adminSeulement: true,
+  },
+  { to: "/alerts", label: "Alertes", icon: Bell },
+  { to: "/history", label: "Historique", icon: Clock3 },
+  { to: "/settings", label: "Paramètres", icon: Settings },
 ]
 
 export function DashboardLayout() {
   const { user, signOut } = useAuthContext()
   const { estAdmin } = useRole()
+  const { data: entreprise } = useEntreprise()
 
-  const itemsVisibles = navItems.filter((item) => !item.adminSeulement || estAdmin)
+  const itemsVisibles = navItems.filter(
+    (item) => !item.adminSeulement || estAdmin
+  )
+
+  const initialesEntreprise = (entreprise?.nom_entreprise ?? "SB")
+    .split(" ")
+    .map((m) => m[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="border-r border-border bg-sidebar px-4 py-6 text-sidebar-foreground">
+          {/* Logo + nom entreprise */}
           <div className="mb-10 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground">
-              SB
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+              {initialesEntreprise}
             </div>
-
-            <div>
-              <p className="text-sm font-semibold">Smart Bureau</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">
+                {entreprise?.nom_entreprise ?? "Syli Bureau"}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Gestion centralisée
+                {user?.role === "administrateur" ? "Administrateur" : "Employé"}
               </p>
             </div>
           </div>
 
+          {/* Navigation */}
           <nav className="space-y-1">
             {itemsVisibles.map((item) => {
               const Icone = item.icon
@@ -73,13 +99,17 @@ export function DashboardLayout() {
             })}
           </nav>
 
+          {/* Carte utilisateur */}
           <div className="mt-10 rounded-[3px] border border-border bg-card p-4 text-sm">
-            <p className="font-medium">Connecté en tant que</p>
-
-            <p className="mt-1 truncate text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
+              Connecté en tant que
+            </p>
+            <p className="mt-1 truncate font-medium">
               {user?.fullName ?? "Utilisateur"}
             </p>
-
+            <p className="truncate text-xs text-muted-foreground">
+              {user?.email}
+            </p>
             <button
               type="button"
               onClick={signOut}
