@@ -19,29 +19,29 @@ Contrôlez à distance vos portes, lampes et caméras depuis n'importe quel navi
 
 ## Qui peut faire quoi
 
-| Action | Administrateur | Employé |
-|--------|:-:|:-:|
-| Gérer les utilisateurs et bureaux | ✅ | ❌ |
-| Voir et contrôler tous les équipements | ✅ | Son bureau seulement |
-| Ouvrir une porte (code PIN requis) | ✅ | Son bureau seulement |
-| Allumer / éteindre une lampe | ✅ | Son bureau seulement |
-| Caméras (snapshot, enregistrement) | ✅ | ❌ |
-| Voir et traiter les alertes | ✅ | ✅ |
-| Voir l'historique des accès | ✅ | ✅ |
-| Modifier son profil | ✅ | ✅ |
-| Modifier les infos de l'entreprise | ✅ | ❌ |
+| Action                                 | Administrateur |       Employé        |
+| -------------------------------------- | :------------: | :------------------: |
+| Gérer les utilisateurs et bureaux      |       ✅       |          ❌          |
+| Voir et contrôler tous les équipements |       ✅       | Son bureau seulement |
+| Ouvrir une porte (code PIN requis)     |       ✅       | Son bureau seulement |
+| Allumer / éteindre une lampe           |       ✅       | Son bureau seulement |
+| Caméras (snapshot, enregistrement)     |       ✅       |          ❌          |
+| Voir et traiter les alertes            |       ✅       |          ✅          |
+| Voir l'historique des accès            |       ✅       |          ✅          |
+| Modifier son profil                    |       ✅       |          ✅          |
+| Modifier les infos de l'entreprise     |       ✅       |          ❌          |
 
 ---
 
 ## Technologies utilisées
 
-| Partie | Technologie |
-|--------|------------|
-| Interface web | React 19 + TypeScript |
-| Serveur API | FastAPI (Python) |
-| Base de données | PostgreSQL — hébergé sur **Supabase** |
-| Communication IoT | MQTT (Mosquitto) |
-| Microcontrôleur | ESP8266 |
+| Partie            | Technologie                           |
+| ----------------- | ------------------------------------- |
+| Interface web     | React 19 + TypeScript                 |
+| Serveur API       | FastAPI (Python)                      |
+| Base de données   | PostgreSQL — hébergé sur **Supabase** |
+| Communication IoT | MQTT (Mosquitto)                      |
+| Microcontrôleur   | ESP8266                               |
 
 ---
 
@@ -79,7 +79,7 @@ MQTT_PORT=1883
 ```
 
 > **Supabase :** l'URL du pooler se trouve dans  
-> *Dashboard → Settings → Database → Connection pooling → URI (Transaction mode)*
+> _Dashboard → Settings → Database → Connection pooling → URI (Transaction mode)_
 
 ### 2 — Frontend
 
@@ -95,6 +95,7 @@ npm install
 Double-cliquer sur **`demarrer.bat`** à la racine du projet.
 
 Cela ouvre automatiquement :
+
 - Le broker MQTT (Mosquitto)
 - Le serveur backend (FastAPI)
 
@@ -107,11 +108,11 @@ npm run dev
 
 Ouvrir **http://localhost:5173** dans le navigateur.
 
-| Service | Adresse |
-|---------|---------|
-| Application web | http://localhost:5173 |
+| Service            | Adresse                    |
+| ------------------ | -------------------------- |
+| Application web    | http://localhost:5173      |
 | API REST + Swagger | http://localhost:8000/docs |
-| Broker MQTT | mqtt://localhost:1883 |
+| Broker MQTT        | mqtt://localhost:1883      |
 
 ---
 
@@ -134,17 +135,17 @@ Ouvrir `esp8266/smart_bureau.ino` dans l'Arduino IDE et renseigner :
 #define WIFI_SSID     "NomDuWifi"
 #define WIFI_PASSWORD "MotDePasse"
 #define MQTT_BROKER   "192.168.x.x"  // IP du PC qui fait tourner le backend
-#define ENT_ID        "1"             // ID de votre entreprise
+#define ENT_ID        "1"             // ID de l'entreprise
 #define BUREAU_ID     "1"             // ID du bureau contrôlé
 ```
 
-| Broche ESP8266 | Équipement |
-|---|---|
-| D2 | Servo (serrure de porte) |
-| D1 | Relais (lampe) |
-| D5 | Capteur de mouvement (PIR) |
-| A0 | Capteur de fumée/gaz (MQ-2) |
-| D6 | Capteur température (DHT11) |
-| D7 | Buzzer d'alarme |
+| Broche ESP8266 | Équipement                  |
+| -------------- | --------------------------- |
+| D2             | Servo (serrure de porte)    |
+| D1             | Relais (lampe)              |
+| D5             | Capteur de mouvement (PIR)  |
+| A0             | Capteur de fumée/gaz (MQ-2) |
+| D6             | Capteur température (DHT11) |
+| D7             | Buzzer d'alarme             |
 
 **Bibliothèques Arduino requises** (Library Manager) : `PubSubClient`, `ArduinoJson`, `DHT sensor library`
