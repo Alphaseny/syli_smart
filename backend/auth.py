@@ -81,6 +81,6 @@ def require_admin(current_user: models.Utilisateur = Depends(get_current_active_
 
 
 def require_employe(current_user: models.Utilisateur = Depends(get_current_active_user)) -> models.Utilisateur:
-    if current_user.role not in {"administrateur", "employe"}:
+    if current_user.role not in {"administrateur", "manager", "employe", "visiteur", "senior"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux utilisateurs authentifiés.")
     return current_user

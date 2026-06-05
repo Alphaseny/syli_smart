@@ -9,10 +9,11 @@ Toutes les commandes de porte nécessitent un code PIN valide.
 Chaque action est journalisée (historique_acces + journal_systeme + journal_mqtt).
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import models
@@ -146,8 +147,40 @@ def commander_porte(
             detail=f"La porte est '{porte.equipement.etat}' — commande refusée.",
         )
 
-    # ── Validation PIN ──────────────────────────────────────────────────────
+    # ── Vérification Verrouillage Temporaire (Lockout) ──────────────────────
     now = datetime.now(timezone.utc)
+    if porte.verrouille_jusqu_a and porte.verrouille_jusqu_a.replace(tzinfo=timezone.utc) > now:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Cette porte est temporairement verrouillée en raison de trop nombreuses tentatives infructueuses (5 min)."
+        )
+
+    # ── Vérification des autorisations granulaires et plages horaires ─────────
+    auth_info = current_user.autorisations or {}
+    
+    # Restriction par bureau
+    bureaux_autorises = auth_info.get("bureaux_autorises")
+    if bureaux_autorises is not None and porte.equipement.bureau_id not in bureaux_autorises:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : vous n'êtes pas autorisé à accéder à cette pièce."
+        )
+
+    # Restriction plage horaire
+    plage = auth_info.get("plages_horaires")
+    if plage:
+        debut = plage.get("debut", "08:00")
+        fin = plage.get("fin", "18:00")
+        heure_actuelle = now.strftime("%H:%M")
+        if heure_actuelle < debut or heure_actuelle > fin:
+            double_auth = auth_info.get("double_auth_hors_plage", True)
+            if double_auth and not payload.double_auth_validee:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Accès hors plage horaire nécessite une double authentification (reconnaissance faciale requise)."
+                )
+
+    # ── Validation PIN ──────────────────────────────────────────────────────
     code_valide = None
 
     for code in porte.codes_acces:
@@ -170,11 +203,42 @@ def commander_porte(
     ))
 
     if not code_valide:
+        porte.tentatives_echouees += 1
+        if porte.tentatives_echouees >= 3:
+            porte.verrouille_jusqu_a = now + timedelta(minutes=5)
+            porte.tentatives_echouees = 0
+            
+            # Alerte d'intrusion globale
+            db.add(models.Alerte(
+                entreprise_id=current_user.entreprise_id,
+                bureau_id=porte.equipement.bureau_id,
+                equipement_id=porte.equipement.id,
+                type_alerte="intrusion",
+                niveau_urgence="critique",
+                statut="non_traitee",
+                description=f"Tentative d'intrusion : 3 échecs consécutifs sur la porte '{porte.equipement.identifiant_mqtt}'."
+            ))
+            
+            # Notifications aux administrateurs
+            admins = db.query(models.Utilisateur).filter(
+                models.Utilisateur.entreprise_id == current_user.entreprise_id,
+                models.Utilisateur.role == "administrateur"
+            ).all()
+            for admin in admins:
+                db.add(models.Notification(
+                    utilisateur_id=admin.id,
+                    titre="Tentative d'intrusion",
+                    message=f"La porte '{porte.equipement.identifiant_mqtt}' a été verrouillée après 3 échecs de code PIN.",
+                    type="securite"
+                ))
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Code PIN invalide ou expiré.",
         )
+
+    # Réinitialisation du compteur sur succès
+    porte.tentatives_echouees = 0
 
     # ── Incrémentation compteur ─────────────────────────────────────────────
     code_valide.nombre_utilisations += 1
@@ -266,6 +330,15 @@ def commander_lampe(
 
     lampe.etat_lumiere = "allume" if payload.action == "allumer" else "eteint"
     lampe.intensite_pct = intensite
+
+    # Enregistrer la consommation simulée lors de l'allumage
+    if payload.action == "allumer":
+        db.add(models.ConsommationEnergie(
+            entreprise_id=current_user.entreprise_id,
+            bureau_id=lampe.equipement.bureau_id,
+            equipement_id=lampe.equipement.id,
+            valeur_kwh=(intensite / 100.0) * 0.05  # formule réaliste
+        ))
 
     _log_mqtt_envoye(db, lampe.equipement, commande)
     _journaliser(
@@ -420,3 +493,166 @@ def recevoir_donnee_capteur(
 
     db.commit()
     return {"ok": True, "identifiant": identifiant_mqtt, "valeur": payload.valeur}
+
+
+# ─── CARTES RFID ──────────────────────────────────────────────────────────────
+
+class CommandeRfid(BaseModel):
+    uid_carte: str
+    code_pin: Optional[str] = None
+
+
+@iot_router.post(
+    "/portes/{porte_id}/rfid",
+    summary="Accès par carte RFID (Mode dégradé ou Senior)",
+)
+def commander_porte_rfid(
+    porte_id: int,
+    payload: CommandeRfid,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Simule l'accès par badge RFID.
+    - Si l'utilisateur associé est 'senior', accès facilité sans code PIN.
+    - Sinon (mode dégradé), exige le code PIN en plus de l'UID carte.
+    """
+    porte: Optional[models.Porte] = db.query(models.Porte).join(models.Equipement).filter(
+        models.Porte.id == porte_id
+    ).first()
+    
+    if not porte:
+        raise HTTPException(status_code=404, detail="Porte non trouvée.")
+
+    # Vérification temporaire de verrouillage
+    now = datetime.now(timezone.utc)
+    if porte.verrouille_jusqu_a and porte.verrouille_jusqu_a.replace(tzinfo=timezone.utc) > now:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Porte temporairement verrouillée suite à de trop nombreux échecs."
+        )
+
+    # Rechercher la carte RFID
+    carte = db.query(models.CarteRfid).filter(
+        models.CarteRfid.uid_carte == payload.uid_carte,
+        models.CarteRfid.etat == True
+    ).first()
+
+    if not carte or not carte.utilisateur_id:
+        # Échec de badge
+        porte.tentatives_echouees += 1
+        _declencher_lockout_si_besoin(db, porte, now)
+        raise HTTPException(status_code=401, detail="Carte RFID inconnue ou désactivée.")
+
+    user = carte.utilisateur
+
+    if not user.etat:
+        raise HTTPException(status_code=401, detail="Compte utilisateur inactif.")
+
+    # Vérifier les horaires et autorisations
+    auth_info = user.autorisations or {}
+    
+    # Restriction bureau
+    bureaux_autorises = auth_info.get("bureaux_autorises")
+    if bureaux_autorises is not None and porte.equipement.bureau_id not in bureaux_autorises:
+        raise HTTPException(status_code=403, detail="Accès refusé pour ce bureau.")
+
+    # Politique plages horaires
+    plage = auth_info.get("plages_horaires")
+    if plage:
+        debut = plage.get("debut", "08:00")
+        fin = plage.get("fin", "18:00")
+        heure_actuelle = now.strftime("%H:%M")
+        if heure_actuelle < debut or heure_actuelle > fin:
+            # Hors plage, même les seniors ont besoin de double auth
+            if not payload.code_pin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Accès hors plage horaire nécessite la saisie du code PIN."
+                )
+
+    # Si l'utilisateur est un senior, accès direct (RFID seul)
+    if user.role == "senior":
+        # Accès accordé
+        return _accorder_rfid_acces(db, porte, user, "carte_rfid_seule")
+
+    # Sinon (mode dégradé), exige le code PIN
+    if not payload.code_pin:
+        # Mode dégradé bascule
+        raise HTTPException(
+            status_code=400,
+            detail="Bascule automatique en mode dégradé : code PIN requis avec la carte RFID."
+        )
+
+    # Validation du PIN
+    code_valide = None
+    for code in porte.codes_acces:
+        if not code.etat:
+            continue
+        if code.expire_le and code.expire_le.replace(tzinfo=timezone.utc) < now:
+            continue
+        if verify_password(payload.code_pin, code.code_hache):
+            code_valide = code
+            break
+
+    if not code_valide:
+        porte.tentatives_echouees += 1
+        _declencher_lockout_si_besoin(db, porte, now)
+        raise HTTPException(status_code=401, detail="Code PIN associé invalide.")
+
+    # Succès
+    code_valide.nombre_utilisations += 1
+    return _accorder_rfid_acces(db, porte, user, "carte_rfid_et_pin")
+
+
+def _declencher_lockout_si_besoin(db: Session, porte: models.Porte, now: datetime):
+    if porte.tentatives_echouees >= 3:
+        porte.verrouille_jusqu_a = now + timedelta(minutes=5)
+        porte.tentatives_echouees = 0
+        db.add(models.Alerte(
+            entreprise_id=porte.equipement.entreprise_id,
+            bureau_id=porte.equipement.bureau_id,
+            equipement_id=porte.equipement.id,
+            type_alerte="intrusion",
+            niveau_urgence="critique",
+            statut="non_traitee",
+            description=f"Tentative d'intrusion : 3 échecs consécutifs RFID/PIN sur '{porte.equipement.identifiant_mqtt}'."
+        ))
+    db.commit()
+
+
+def _accorder_rfid_acces(db: Session, porte: models.Porte, user: models.Utilisateur, methode: str):
+    porte.tentatives_echouees = 0
+    porte.etat_verrou = "ouvert"
+    porte.derniere_ouverture = datetime.now(timezone.utc)
+
+    # Log accès
+    db.add(models.HistoriqueAcces(
+        porte_id=porte.id,
+        utilisateur_id=user.id,
+        methode_ouverture=methode,
+        resultat="succes",
+    ))
+    db.add(models.JournalSysteme(
+        entreprise_id=user.entreprise_id,
+        utilisateur_id=user.id,
+        action="porte_ouvrir",
+        type_entite="porte",
+        identifiant_entite=porte.id,
+        details=f"Ouverture par RFID ({methode}) — {user.prenom} {user.nom}",
+    ))
+
+    # Envoyer MQTT
+    publier_commande(
+        user.entreprise_id,
+        porte.equipement.bureau_id,
+        porte.equipement.identifiant_mqtt,
+        {"action": "ouvrir", "duree_sec": porte.duree_ouverture_sec}
+    )
+    db.commit()
+
+    return {
+        "autorise": True,
+        "nom": f"{user.prenom} {user.nom}",
+        "message": f"Accès accordé par RFID ({user.role})."
+    }

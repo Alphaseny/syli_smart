@@ -52,8 +52,10 @@ class Utilisateur(Base):
     prenom = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, nullable=False)
     mot_de_passe = Column(String(255), nullable=False)
-    role = Column(String(30), nullable=False)  # 'administrateur' | 'employe'
+    role = Column(String(30), nullable=False)  # 'administrateur' | 'manager' | 'employe' | 'visiteur' | 'senior'
     etat = Column(Boolean, nullable=False, default=True)
+    langue_preferee = Column(String(10), nullable=False, default="fr")
+    autorisations = Column(JSONB, nullable=True)
     date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     entreprise = relationship("Entreprise", back_populates="utilisateurs")
@@ -65,6 +67,9 @@ class Utilisateur(Base):
     )
     journal_systeme = relationship("JournalSysteme", back_populates="utilisateur")
     encodages_faciaux = relationship("EncodageFacial", back_populates="utilisateur", cascade="all, delete-orphan")
+    cartes_rfid = relationship("CarteRfid", back_populates="utilisateur", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="utilisateur", cascade="all, delete-orphan")
+    rappels = relationship("Rappel", back_populates="utilisateur", cascade="all, delete-orphan")
 
 
 class EncodageFacial(Base):
@@ -125,6 +130,8 @@ class Porte(Base):
     mode_ouverture = Column(String(20), nullable=False, default="manuel")
     duree_ouverture_sec = Column(SmallInteger, nullable=False, default=5)
     derniere_ouverture = Column(DateTime(timezone=True), nullable=True)
+    tentatives_echouees = Column(Integer, nullable=False, default=0)
+    verrouille_jusqu_a = Column(DateTime(timezone=True), nullable=True)
 
     equipement = relationship("Equipement", back_populates="porte")
     codes_acces = relationship("CodeAcces", back_populates="porte", cascade="all, delete-orphan")
@@ -243,3 +250,62 @@ class JournalSysteme(Base):
 
     entreprise = relationship("Entreprise", back_populates="journal_systeme")
     utilisateur = relationship("Utilisateur", back_populates="journal_systeme")
+
+
+class CarteRfid(Base):
+    __tablename__ = "cartes_rfid"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entreprise_id = Column(Integer, ForeignKey("entreprises.id", ondelete="CASCADE"), nullable=False)
+    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True)
+    uid_carte = Column(String(50), unique=True, nullable=False)
+    etat = Column(Boolean, nullable=False, default=True)
+    date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    entreprise = relationship("Entreprise")
+    utilisateur = relationship("Utilisateur", back_populates="cartes_rfid")
+
+
+class ConsommationEnergie(Base):
+    __tablename__ = "consommations_energie"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entreprise_id = Column(Integer, ForeignKey("entreprises.id", ondelete="CASCADE"), nullable=False)
+    bureau_id = Column(Integer, ForeignKey("bureaux.id", ondelete="CASCADE"), nullable=False)
+    equipement_id = Column(Integer, ForeignKey("equipements.id", ondelete="CASCADE"), nullable=False)
+    date_heure = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    valeur_kwh = Column(Numeric(10, 4), nullable=False)
+
+    entreprise = relationship("Entreprise")
+    bureau = relationship("Bureau")
+    equipement = relationship("Equipement")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id", ondelete="CASCADE"), nullable=False)
+    titre = Column(String(150), nullable=False)
+    message = Column(Text, nullable=False)
+    lue = Column(Boolean, nullable=False, default=False)
+    type = Column(String(30), nullable=False)  # 'alerte' | 'securite' | 'rappel'
+    date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    utilisateur = relationship("Utilisateur", back_populates="notifications")
+
+
+class Rappel(Base):
+    __tablename__ = "rappels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id", ondelete="CASCADE"), nullable=False)
+    bureau_id = Column(Integer, ForeignKey("bureaux.id", ondelete="CASCADE"), nullable=False)
+    titre = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    date_rappel = Column(DateTime(timezone=True), nullable=False)
+    execute = Column(Boolean, nullable=False, default=False)
+    date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    utilisateur = relationship("Utilisateur", back_populates="rappels")
+    bureau = relationship("Bureau")

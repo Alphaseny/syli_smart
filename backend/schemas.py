@@ -82,8 +82,10 @@ class UtilisateurCreate(ConfiguredBaseModel):
     prenom: str
     email: str
     mot_de_passe: str
-    role: str  # 'administrateur' | 'employe'
-    bureau_id: Optional[int] = None  # requis pour 'employe'
+    role: str  # 'administrateur' | 'manager' | 'employe' | 'visiteur' | 'senior'
+    bureau_id: Optional[int] = None
+    langue_preferee: Optional[str] = "fr"
+    autorisations: Optional[dict] = None
 
 
 class UtilisateurUpdate(ConfiguredBaseModel):
@@ -93,6 +95,8 @@ class UtilisateurUpdate(ConfiguredBaseModel):
     mot_de_passe: Optional[str] = None
     bureau_id: Optional[int] = None
     etat: Optional[bool] = None
+    langue_preferee: Optional[str] = None
+    autorisations: Optional[dict] = None
 
 
 class UtilisateurRead(ConfiguredBaseModel):
@@ -104,6 +108,8 @@ class UtilisateurRead(ConfiguredBaseModel):
     email: str
     role: str
     etat: bool
+    langue_preferee: str
+    autorisations: Optional[dict] = None
     date_creation: datetime
 
 
@@ -197,6 +203,8 @@ class PorteRead(ConfiguredBaseModel):
     mode_ouverture: str
     duree_ouverture_sec: int
     derniere_ouverture: Optional[datetime] = None
+    tentatives_echouees: int
+    verrouille_jusqu_a: Optional[datetime] = None
     equipement: EquipementRead
 
 
@@ -391,6 +399,7 @@ class CommandePorte(ConfiguredBaseModel):
     """Commande d'ouverture/fermeture de porte — nécessite un code PIN valide."""
     action: str     # "ouvrir" | "fermer"
     code_pin: str   # Code PIN en clair, vérifié côté backend
+    double_auth_validee: Optional[bool] = False
 
 
 class CommandePorteResponse(ConfiguredBaseModel):
@@ -426,3 +435,93 @@ class DonneeCapteur(ConfiguredBaseModel):
 
 class StatutMqtt(ConfiguredBaseModel):
     mqtt_connecte: bool
+
+
+# ==================== CARTES RFID ====================
+
+class CarteRfidCreate(ConfiguredBaseModel):
+    uid_carte: str
+    utilisateur_id: Optional[int] = None
+
+
+class CarteRfidUpdate(ConfiguredBaseModel):
+    utilisateur_id: Optional[int] = None
+    etat: Optional[bool] = None
+
+
+class CarteRfidRead(ConfiguredBaseModel):
+    id: int
+    entreprise_id: int
+    utilisateur_id: Optional[int] = None
+    uid_carte: str
+    etat: bool
+    date_creation: datetime
+
+
+# ==================== CONSOMMATION ENERGIE ====================
+
+class ConsommationEnergieCreate(ConfiguredBaseModel):
+    bureau_id: int
+    equipement_id: int
+    valeur_kwh: float
+
+
+class ConsommationEnergieRead(ConfiguredBaseModel):
+    id: int
+    entreprise_id: int
+    bureau_id: int
+    equipement_id: int
+    date_heure: datetime
+    valeur_kwh: float
+
+
+# ==================== NOTIFICATIONS ====================
+
+class NotificationCreate(ConfiguredBaseModel):
+    utilisateur_id: int
+    titre: str
+    message: str
+    type: str  # alerte, securite, rappel
+
+
+class NotificationUpdate(ConfiguredBaseModel):
+    lue: Optional[bool] = None
+
+
+class NotificationRead(ConfiguredBaseModel):
+    id: int
+    utilisateur_id: int
+    titre: str
+    message: str
+    lue: bool
+    type: str
+    date_creation: datetime
+
+
+# ==================== RAPPELS ====================
+
+class RappelCreate(ConfiguredBaseModel):
+    utilisateur_id: int
+    bureau_id: int
+    titre: str
+    description: Optional[str] = None
+    date_rappel: datetime
+
+
+class RappelUpdate(ConfiguredBaseModel):
+    titre: Optional[str] = None
+    description: Optional[str] = None
+    date_rappel: Optional[datetime] = None
+    execute: Optional[bool] = None
+
+
+class RappelRead(ConfiguredBaseModel):
+    id: int
+    utilisateur_id: int
+    bureau_id: int
+    titre: str
+    description: Optional[str] = None
+    date_rappel: datetime
+    execute: bool
+    date_creation: datetime
+

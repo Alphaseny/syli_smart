@@ -17,6 +17,9 @@ from auth import (
 )
 from database import get_db
 from security import hash_password
+import energy_service
+import habits_service
+import wellness_service
 
 router = APIRouter(prefix="/api")
 auth_router = APIRouter(prefix="/auth", tags=["Authentification"])
@@ -304,10 +307,10 @@ def create_utilisateur(
     db: Session = Depends(get_db),
 ):
     role = payload.role.strip().lower()
-    if role not in {"administrateur", "employe"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le rôle doit être 'administrateur' ou 'employe'.")
-    if role == "employe" and payload.bureau_id is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="bureau_id est requis pour un employé.")
+    if role not in {"administrateur", "manager", "employe", "visiteur", "senior"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rôle invalide.")
+    if role != "administrateur" and payload.bureau_id is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="bureau_id est requis pour ce rôle.")
     if payload.bureau_id:
         _bureau_ou_404(payload.bureau_id, current_user.entreprise_id, db)
 
@@ -329,6 +332,8 @@ def create_utilisateur(
         mot_de_passe=mot_de_passe_hache,
         role=role,
         etat=True,
+        langue_preferee=payload.langue_preferee or "fr",
+        autorisations=payload.autorisations or {},
     )
     db.add(user)
     db.commit()
@@ -1261,6 +1266,217 @@ def delete_journal_systeme(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entrée non trouvée.")
     db.delete(entry)
     db.commit()
+
+
+# ===========================================================================
+# CARTES RFID
+# ===========================================================================
+
+@resource_router.get("/cartes-rfid", response_model=List[schemas.CarteRfidRead], dependencies=[Depends(require_employe)])
+def list_cartes_rfid(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    return db.query(models.CarteRfid).filter(models.CarteRfid.entreprise_id == current_user.entreprise_id).all()
+
+
+@resource_router.post("/cartes-rfid", response_model=schemas.CarteRfidRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
+def create_carte_rfid(payload: schemas.CarteRfidCreate, current_user: models.Utilisateur = Depends(require_admin), db: Session = Depends(get_db)):
+    carte = models.CarteRfid(
+        entreprise_id=current_user.entreprise_id,
+        uid_carte=payload.uid_carte,
+        utilisateur_id=payload.utilisateur_id,
+        etat=True
+    )
+    db.add(carte)
+    db.commit()
+    db.refresh(carte)
+    return carte
+
+
+@resource_router.put("/cartes-rfid/{carte_id}", response_model=schemas.CarteRfidRead, dependencies=[Depends(require_admin)])
+def update_carte_rfid(carte_id: int, payload: schemas.CarteRfidUpdate, current_user: models.Utilisateur = Depends(require_admin), db: Session = Depends(get_db)):
+    carte = db.query(models.CarteRfid).filter(
+        models.CarteRfid.id == carte_id,
+        models.CarteRfid.entreprise_id == current_user.entreprise_id
+    ).first()
+    if not carte:
+        raise HTTPException(status_code=404, detail="Carte RFID non trouvée.")
+    
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(carte, k, v)
+    db.commit()
+    db.refresh(carte)
+    return carte
+
+
+@resource_router.delete("/cartes-rfid/{carte_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+def delete_carte_rfid(carte_id: int, current_user: models.Utilisateur = Depends(require_admin), db: Session = Depends(get_db)):
+    carte = db.query(models.CarteRfid).filter(
+        models.CarteRfid.id == carte_id,
+        models.CarteRfid.entreprise_id == current_user.entreprise_id
+    ).first()
+    if not carte:
+        raise HTTPException(status_code=404, detail="Carte RFID non trouvée.")
+    db.delete(carte)
+    db.commit()
+
+
+# ===========================================================================
+# NOTIFICATIONS
+# ===========================================================================
+
+@resource_router.get("/notifications", response_model=List[schemas.NotificationRead])
+def list_notifications(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    wellness_service.executer_rappels_dus(db)
+    wellness_service.verifier_inactivite_bureau(db, current_user.entreprise_id)
+    
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.utilisateur_id == current_user.id)
+        .order_by(models.Notification.date_creation.desc())
+        .all()
+    )
+
+
+@resource_router.put("/notifications/{notif_id}/read", response_model=schemas.NotificationRead)
+def mark_notification_read(notif_id: int, current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    notif = db.query(models.Notification).filter(
+        models.Notification.id == notif_id,
+        models.Notification.utilisateur_id == current_user.id
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification non trouvée.")
+    notif.lue = True
+    db.commit()
+    db.refresh(notif)
+    return notif
+
+
+@resource_router.put("/notifications/read-all")
+def mark_all_notifications_read(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    db.query(models.Notification).filter(
+        models.Notification.utilisateur_id == current_user.id,
+        models.Notification.lue == False
+    ).update({"lue": True})
+    db.commit()
+    return {"message": "Toutes les notifications ont été marquées comme lues."}
+
+
+# ===========================================================================
+# RAPPELS
+# ===========================================================================
+
+@resource_router.get("/rappels", response_model=List[schemas.RappelRead])
+def list_rappels(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    return db.query(models.Rappel).filter(models.Rappel.utilisateur_id == current_user.id).all()
+
+
+@resource_router.post("/rappels", response_model=schemas.RappelRead, status_code=status.HTTP_201_CREATED)
+def create_rappel(payload: schemas.RappelCreate, current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    _bureau_ou_404(payload.bureau_id, current_user.entreprise_id, db)
+    rappel = models.Rappel(
+        utilisateur_id=payload.utilisateur_id,
+        bureau_id=payload.bureau_id,
+        titre=payload.titre,
+        description=payload.description,
+        date_rappel=payload.date_rappel,
+        execute=False
+    )
+    db.add(rappel)
+    db.commit()
+    db.refresh(rappel)
+    return rappel
+
+
+@resource_router.put("/rappels/{rappel_id}", response_model=schemas.RappelRead)
+def update_rappel(rappel_id: int, payload: schemas.RappelUpdate, current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    rappel = db.query(models.Rappel).filter(
+        models.Rappel.id == rappel_id,
+        models.Rappel.utilisateur_id == current_user.id
+    ).first()
+    if not rappel:
+        raise HTTPException(status_code=404, detail="Rappel non trouvé.")
+    
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(rappel, k, v)
+    db.commit()
+    db.refresh(rappel)
+    return rappel
+
+
+@resource_router.delete("/rappels/{rappel_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_rappel(rappel_id: int, current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    rappel = db.query(models.Rappel).filter(
+        models.Rappel.id == rappel_id,
+        models.Rappel.utilisateur_id == current_user.id
+    ).first()
+    if not rappel:
+        raise HTTPException(status_code=404, detail="Rappel non trouvé.")
+    db.delete(rappel)
+    db.commit()
+
+
+# ===========================================================================
+# STATISTIQUES ENERGIE & HABITUDES
+# ===========================================================================
+
+@resource_router.get("/stats/energie")
+def get_energy_stats(periode: str = "semaine", current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    energy_service.simuler_consommation_7_jours(db, current_user.entreprise_id)
+    energy_service.verifier_surconsommation_alerte(db, current_user.entreprise_id)
+    stats = energy_service.obtenir_stats_consommation(db, current_user.entreprise_id, periode)
+    conseils = energy_service.generer_recommandations(db, current_user.entreprise_id)
+    return {
+        "periode": periode,
+        "consommation": stats,
+        "recommandations": conseils
+    }
+
+
+@resource_router.get("/stats/habits")
+def get_habits_suggestions(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    return habits_service.analyser_habitudes_et_suggestions(db, current_user.entreprise_id)
+
+
+# ===========================================================================
+# EXPORT HISTORIQUE ACCES CSV
+# ===========================================================================
+
+@resource_router.get("/historique-acces/export")
+def export_historique_acces(current_user: models.Utilisateur = Depends(require_employe), db: Session = Depends(get_db)):
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+
+    historique = (
+        db.query(models.HistoriqueAcces)
+        .join(models.Porte)
+        .join(models.Equipement)
+        .filter(models.Equipement.entreprise_id == current_user.entreprise_id)
+        .order_by(models.HistoriqueAcces.date_acces.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["ID", "Porte", "Utilisateur", "Méthode", "Résultat", "Date"])
+    for row in historique:
+        user_name = f"{row.utilisateur.prenom} {row.utilisateur.nom}" if row.utilisateur else "Inconnu"
+        writer.writerow([
+            row.id,
+            row.porte.equipement.identifiant_mqtt,
+            user_name,
+            row.methode_ouverture,
+            row.resultat,
+            row.date_acces.isoformat()
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=historique_acces.csv"}
+    )
 
 
 # ===========================================================================
