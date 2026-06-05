@@ -36,7 +36,7 @@ export default function BureauPage() {
   const { data: bureaux = [], isLoading } = useQuery<Bureau[], Error>({
     queryKey: ["bureaux", entrepriseId],
     queryFn: recupererBureaux,
-    staleTime: 1000 * 60 * 3,
+    staleTime: 0,
     enabled: entrepriseId !== null,
   })
 

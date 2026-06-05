@@ -24,7 +24,7 @@ export function UtilisateursPage() {
   const { data: bureaux = [] } = useQuery({
     queryKey: ["bureaux", entrepriseId],
     queryFn: recupererBureaux,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
     enabled: entrepriseId !== null,
   })
   const { data: utilisateursEnroles = [] } = useQuery({
