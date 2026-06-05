@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { type Utilisateur } from "@/types/user"
-import { Camera, CheckCircle, Pencil, UserX } from "lucide-react"
+import { Camera, CheckCircle, CreditCard, Pencil, UserX } from "lucide-react"
 import { type UtilisateurEnrole } from "../services/reconnaissance.service"
 
 type BureauOption = { id: string; nomBureau: string }
@@ -20,6 +20,7 @@ type Props = {
   onEdit: (user: Utilisateur) => void
   onDelete: (user: Utilisateur) => void
   onGererVisage: (user: Utilisateur) => void
+  onGererRfid: (user: Utilisateur) => void
   supprimerEnCours?: boolean
   utilisateursEnroles: UtilisateurEnrole[]
 }
@@ -31,6 +32,7 @@ export function TableauUtilisateurs({
   onEdit,
   onDelete,
   onGererVisage,
+  onGererRfid,
   supprimerEnCours = false,
   utilisateursEnroles,
 }: Props) {
@@ -58,6 +60,7 @@ export function TableauUtilisateurs({
             <TableHead>Bureau</TableHead>
             <TableHead>Statut</TableHead>
             <TableHead>Visage</TableHead>
+            <TableHead>RFID</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -96,6 +99,19 @@ export function TableauUtilisateurs({
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
+                </TableCell>
+
+                {/* Colonne RFID (bouton gérer) */}
+                <TableCell>
+                  <button
+                    type="button"
+                    onClick={() => onGererRfid(user)}
+                    title="Gérer les cartes RFID"
+                    className="inline-flex items-center gap-1.5 rounded-[3px] border border-border bg-secondary px-2.5 py-1.5 text-xs text-secondary-foreground transition hover:bg-secondary/80"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    RFID
+                  </button>
                 </TableCell>
 
                 <TableCell>

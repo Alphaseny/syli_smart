@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { recupererBureaux } from "@/pages/Bureaux/services/bureau.service"
 import { FormulaireUtilisateur } from "./components/FormulaireUtilisateur"
 import { ModalEnregistrementVisage } from "./components/ModalEnregistrementVisage"
+import { ModalRfid } from "./components/ModalRfid"
 import { TableauUtilisateurs } from "./components/TableauUtilisateurs"
 import { useAjouterUtilisateur } from "./hooks/useAjouterUtilisateur"
 import { useModifierUtilisateur } from "./hooks/useModifierUtilisateur"
@@ -41,6 +42,7 @@ export function UtilisateursPage() {
   const [formulaireVisible, setFormulaireVisible] = useState(false)
   const [erreurFormulaire, setErreurFormulaire] = useState<string | null>(null)
   const [utilisateurVisage, setUtilisateurVisage] = useState<Utilisateur | null>(null)
+  const [utilisateurRfid, setUtilisateurRfid] = useState<Utilisateur | null>(null)
 
   const ouvrirAjout = () => {
     setUtilisateurSelectionne(null)
@@ -131,6 +133,7 @@ export function UtilisateursPage() {
         onEdit={ouvrirModification}
         onDelete={(user) => mutationSupprimer.mutate(user.id)}
         onGererVisage={setUtilisateurVisage}
+        onGererRfid={setUtilisateurRfid}
         supprimerEnCours={mutationSupprimer.isPending}
         utilisateursEnroles={utilisateursEnroles}
       />
@@ -142,6 +145,14 @@ export function UtilisateursPage() {
           estEnrole={estEnrole(utilisateurVisage.id)}
           onFermer={() => setUtilisateurVisage(null)}
           onSucces={() => qc.invalidateQueries({ queryKey: ["visages-enroles"] })}
+        />
+      )}
+
+      {/* Modal RFID */}
+      {utilisateurRfid && (
+        <ModalRfid
+          utilisateur={utilisateurRfid}
+          onFermer={() => setUtilisateurRfid(null)}
         />
       )}
     </div>
