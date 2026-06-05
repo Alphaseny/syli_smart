@@ -1,0 +1,1 @@
+export { BienEtrePage } from "./BienEtre"
