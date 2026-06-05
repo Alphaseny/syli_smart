@@ -48,6 +48,33 @@ _PATTERNS_EN = [
     (r"\bsnapshot\b", "camera", "snapshot"),
 ]
 
+# ── Patterns PEUL ─────────────────────────────────────────────────────────────
+
+_PATTERNS_PEUL = [
+    (r"\b(hubu|huɓu)\b", "lampe", "allumer"),
+    (r"\b(yifu|yif)\b", "lampe", "eteindre"),
+    (r"\b(uddit|oudit)\b", "porte", "ouvrir"),
+    (r"\b(uddal|oudal)\b", "porte", "fermer"),
+]
+
+# ── Patterns SOUSSOU ──────────────────────────────────────────────────────────
+
+_PATTERNS_SOUSSOU = [
+    (r"\b(lanyi|lan-yi)\b", "lampe", "allumer"),
+    (r"\b(luxu|loukhou)\b", "lampe", "eteindre"),
+    (r"\b(naabi|nabi)\b", "porte", "ouvrir"),
+    (r"\b(naabife|nabife)\b", "porte", "fermer"),
+]
+
+# ── Patterns MALINKE ──────────────────────────────────────────────────────────
+
+_PATTERNS_MALINKE = [
+    (r"\b(koun|kourdoun-koun)\b", "lampe", "allumer"),
+    (r"\b(diguy|kourdoun-diguy)\b", "lampe", "eteindre"),
+    (r"\b(dayele|da-yele)\b", "porte", "ouvrir"),
+    (r"\b(datougou|da-tougou)\b", "porte", "fermer"),
+]
+
 # ── Mots-clés de lieu ─────────────────────────────────────────────────────────
 
 _LIEUX_FR = ["bureau", "salle", "couloir", "entrée", "accueil", "réunion", "direction"]
@@ -95,6 +122,42 @@ def parser_commande(texte: str) -> Optional[CommandeVocale]:
                 action=action,
                 cible=_extraire_cible(t, _LIEUX_EN),
                 langue="en",
+                texte_original=texte,
+            )
+
+    # Essai PEUL
+    for pattern, type_eq, action in _PATTERNS_PEUL:
+        if re.search(pattern, t, re.IGNORECASE):
+            return CommandeVocale(
+                intention=f"{type_eq}_{action}",
+                type_equipement=type_eq,
+                action=action,
+                cible=_extraire_cible(t, _LIEUX_FR),
+                langue="peul",
+                texte_original=texte,
+            )
+
+    # Essai SOUSSOU
+    for pattern, type_eq, action in _PATTERNS_SOUSSOU:
+        if re.search(pattern, t, re.IGNORECASE):
+            return CommandeVocale(
+                intention=f"{type_eq}_{action}",
+                type_equipement=type_eq,
+                action=action,
+                cible=_extraire_cible(t, _LIEUX_FR),
+                langue="soussou",
+                texte_original=texte,
+            )
+
+    # Essai MALINKE
+    for pattern, type_eq, action in _PATTERNS_MALINKE:
+        if re.search(pattern, t, re.IGNORECASE):
+            return CommandeVocale(
+                intention=f"{type_eq}_{action}",
+                type_equipement=type_eq,
+                action=action,
+                cible=_extraire_cible(t, _LIEUX_FR),
+                langue="malinke",
                 texte_original=texte,
             )
 
