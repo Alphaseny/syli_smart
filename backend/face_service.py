@@ -1,15 +1,8 @@
 """
-Service de reconnaissance faciale — face_recognition (dlib, 128 floats).
+Service de reconnaissance faciale — DeepFace (pas de compilation C++ nécessaire).
 
-Installation sur Windows :
-  pip install cmake
-  pip install dlib          # necessite Visual C++ Build Tools (~20 min)
-  pip install face_recognition
-  pip install Pillow numpy
-
-Ou via wheel pre-compile (plus rapide) :
-  pip install https://github.com/z-mahmud22/Dlib_Windows_Python3.x/raw/main/dlib-19.22.99-cp311-cp311-win_amd64.whl
-  pip install face_recognition
+Installation :
+  pip install deepface tf-keras opencv-python-headless numpy Pillow
 """
 
 import io
@@ -21,39 +14,54 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 try:
-    import face_recognition
+    from deepface import DeepFace
+    import cv2
     FACE_RECOGNITION_DISPONIBLE = True
-    logger.info("face_recognition charge avec succes.")
+    logger.info("DeepFace chargé avec succès.")
 except ImportError:
     FACE_RECOGNITION_DISPONIBLE = False
     logger.warning(
-        "face_recognition non installe. "
-        "Lancez : pip install cmake dlib face_recognition"
+        "DeepFace non installé. "
+        "Lancez : pip install deepface tf-keras opencv-python-headless"
     )
+
+MODEL_NAME = "Facenet"  # Facenet = embeddings 128 floats, rapide et précis
+DETECTOR = "opencv"     # opencv = rapide, pas de deps lourdes
+
+
+def _bytes_to_array(image_bytes: bytes):
+    """Convertit des octets image en tableau numpy BGR (format OpenCV)."""
+    arr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    return img
 
 
 def extraire_encoding(image_bytes: bytes) -> Optional[list[float]]:
     """
-    Extrait l'embedding facial (128 floats) depuis des octets d'image JPEG/PNG.
-    Retourne None si aucun visage n'est detecte ou si la bibliotheque est absente.
+    Extrait l'embedding facial depuis une image JPEG/PNG.
+    Retourne une liste de floats ou None si aucun visage détecté.
     """
     if not FACE_RECOGNITION_DISPONIBLE:
-        raise RuntimeError("face_recognition n'est pas installe sur ce serveur.")
+        raise RuntimeError("DeepFace n'est pas installé sur ce serveur.")
 
     try:
-        from PIL import Image
-
-        img_pil = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img_array = np.array(img_pil)
-
-        encodings = face_recognition.face_encodings(img_array)
-        if not encodings:
+        img = _bytes_to_array(image_bytes)
+        if img is None:
             return None
 
-        return encodings[0].tolist()
+        result = DeepFace.represent(
+            img_path=img,
+            model_name=MODEL_NAME,
+            detector_backend=DETECTOR,
+            enforce_detection=True,
+        )
+        if not result:
+            return None
+
+        return result[0]["embedding"]
 
     except Exception as exc:
-        logger.exception("Erreur lors de l'extraction de l'encoding facial : %s", exc)
+        logger.warning("Extraction encoding : %s", exc)
         return None
 
 
@@ -63,26 +71,30 @@ def comparer_encodings(
     tolerance: float = 0.55,
 ) -> Optional[tuple[int, str]]:
     """
-    Compare un encoding deja extrait contre les encodings connus.
+    Compare un embedding contre une liste d'embeddings connus.
     Retourne (utilisateur_id, nom_label) ou None si non reconnu.
-    Permet de distinguer "aucun visage" (extraire_encoding=None) de "non reconnu".
+    La tolérance est une distance cosinus : plus elle est basse, plus c'est strict.
     """
     if not encodings_connus:
         return None
 
     cible = np.array(encoding_cible)
+    cible_norm = cible / (np.linalg.norm(cible) + 1e-10)
+
     meilleure_distance = float("inf")
     meilleur_match: Optional[tuple[int, str]] = None
 
     for utilisateur_id, nom_label, encoding_connu in encodings_connus:
         connu = np.array(encoding_connu)
-        distance = face_recognition.face_distance([connu], cible)[0]
+        connu_norm = connu / (np.linalg.norm(connu) + 1e-10)
+        # Distance cosinus : 0 = identique, 1 = opposé
+        distance = float(1.0 - np.dot(cible_norm, connu_norm))
         if distance < tolerance and distance < meilleure_distance:
             meilleure_distance = distance
             meilleur_match = (utilisateur_id, nom_label)
 
     if meilleur_match:
-        logger.info("Visage identifie : %s (distance=%.3f)", meilleur_match[1], meilleure_distance)
+        logger.info("Visage identifié : %s (distance=%.3f)", meilleur_match[1], meilleure_distance)
     else:
         logger.info("Visage non reconnu (meilleure distance=%.3f)", meilleure_distance)
 
@@ -96,10 +108,9 @@ def identifier_visage(
 ) -> Optional[tuple[int, str]]:
     """
     Identifie le visage dans l'image et retourne (utilisateur_id, nom_label) ou None.
-    Utilise par l'endpoint ESP32-CAM (/identifier).
     """
     if not FACE_RECOGNITION_DISPONIBLE:
-        raise RuntimeError("face_recognition n'est pas installe sur ce serveur.")
+        raise RuntimeError("DeepFace n'est pas installé sur ce serveur.")
 
     encoding_cible = extraire_encoding(image_bytes)
     if encoding_cible is None:

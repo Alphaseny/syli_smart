@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 face_router = APIRouter(prefix="/reconnaissance", tags=["Reconnaissance faciale"])
 
 CAMERA_API_KEY = os.getenv("CAMERA_API_KEY", "changeme-camera-secret")
-TOLERANCE_FACIALE = float(os.getenv("FACE_TOLERANCE", "0.55"))
+TOLERANCE_FACIALE = float(os.getenv("FACE_TOLERANCE", "0.40"))  # distance cosinus FaceNet
 
 
 # ─── Vérification clé caméra ──────────────────────────────────────────────────
