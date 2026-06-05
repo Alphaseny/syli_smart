@@ -111,6 +111,27 @@ export async function commanderPorte(
   })
 }
 
+// ── Reconnaissance faciale (navigateur) ──────────────────────────────────────
+
+export type ResultatReconnaissance = {
+  autorise: boolean
+  nom: string | null
+  message: string
+  raison?: "aucun_visage" | "non_reconnu" | null
+}
+
+export async function identifierVisageLive(
+  porteId: number,
+  image: Blob
+): Promise<ResultatReconnaissance> {
+  const form = new FormData()
+  form.append("image", image, "visage.jpg")
+  return apiClient<ResultatReconnaissance>(
+    `/reconnaissance/porte/${porteId}/identifier-live`,
+    { method: "POST", body: form }
+  )
+}
+
 // ── Codes d'accès ─────────────────────────────────────────────────────────────
 
 export async function recupererCodesPorte(porteId: number): Promise<CodeAccesBackend[]> {

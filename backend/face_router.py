@@ -21,7 +21,7 @@ import models
 import schemas
 from auth import require_admin, require_employe
 from database import get_db
-from face_service import extraire_encoding, identifier_visage, est_disponible
+from face_service import extraire_encoding, comparer_encodings, identifier_visage, est_disponible
 from mqtt_service import publier_commande
 
 logger = logging.getLogger(__name__)
@@ -303,4 +303,121 @@ async def identifier_et_ouvrir(
         "nom": nom_label,
         "message": f"Bonjour {nom_label} — accès accordé.",
         "commande_mqtt_envoyee": commande_envoyee,
+    }
+
+
+# ─── IDENTIFICATION DEPUIS LE NAVIGATEUR (JWT) ────────────────────────────────
+
+@face_router.post("/porte/{porte_id}/identifier-live")
+async def identifier_live(
+    porte_id: int,
+    image: UploadFile = File(..., description="Photo capturée par la caméra du navigateur"),
+    current_user: models.Utilisateur = Depends(require_employe),
+    db: Session = Depends(get_db),
+):
+    """
+    Identification depuis la caméra du navigateur (authentifié via JWT).
+    Appelé par le frontend quand l'utilisateur clique sur 'Ouvrir'.
+
+    - Si le visage correspond à l'utilisateur connecté → ouvre la porte (MQTT)
+    - Si non reconnu → retourne autorise=False → le frontend bascule sur le modal PIN
+    """
+    if not est_disponible():
+        raise HTTPException(status_code=503, detail="face_recognition non installé sur le serveur.")
+
+    porte = db.query(models.Porte).join(models.Equipement).filter(
+        models.Porte.id == porte_id,
+        models.Equipement.entreprise_id == current_user.entreprise_id,
+    ).first()
+    if not porte:
+        raise HTTPException(status_code=404, detail="Porte non trouvée.")
+
+    entreprise_id = porte.equipement.entreprise_id
+    bureau_id = porte.equipement.bureau_id
+
+    # Vérification d'accès bureau (employé → son bureau uniquement)
+    if current_user.role == "employe" and current_user.bureau_id != bureau_id:
+        raise HTTPException(status_code=403, detail="Accès refusé à ce bureau.")
+
+    # Charger tous les encodages de l'entreprise
+    encodages_db = db.query(models.EncodageFacial).filter(
+        models.EncodageFacial.entreprise_id == entreprise_id,
+    ).all()
+
+    if not encodages_db:
+        return {
+            "autorise": False,
+            "nom": None,
+            "message": "Aucun visage enregistré — utilisez votre code PIN.",
+        }
+
+    encodages = [(e.utilisateur_id, e.nom_label, e.encoding) for e in encodages_db]
+
+    image_bytes = await image.read()
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image trop grande.")
+
+    # Extraction en deux etapes pour distinguer "aucun visage" de "non reconnu"
+    encoding = extraire_encoding(image_bytes)
+    if encoding is None:
+        db.add(models.HistoriqueAcces(
+            porte_id=porte_id,
+            utilisateur_id=current_user.id,
+            methode_ouverture="reconnaissance_faciale",
+            resultat="refuse",
+            date_acces=datetime.now(timezone.utc),
+        ))
+        db.commit()
+        return {
+            "autorise": False,
+            "nom": None,
+            "raison": "aucun_visage",
+            "message": "Aucun visage detecte — verifiez la luminosite.",
+        }
+
+    resultat = comparer_encodings(encoding, encodages, tolerance=TOLERANCE_FACIALE)
+    if resultat is None:
+        db.add(models.HistoriqueAcces(
+            porte_id=porte_id,
+            utilisateur_id=current_user.id,
+            methode_ouverture="reconnaissance_faciale",
+            resultat="refuse",
+            date_acces=datetime.now(timezone.utc),
+        ))
+        db.commit()
+        return {
+            "autorise": False,
+            "nom": None,
+            "raison": "non_reconnu",
+            "message": "Visage non reconnu.",
+        }
+
+    utilisateur_id, nom_label = resultat
+
+    # Envoyer la commande MQTT pour ouvrir la porte
+    commande_envoyee = publier_commande(
+        entreprise_id,
+        bureau_id,
+        porte.equipement.identifiant_mqtt,
+        {"action": "ouvrir", "source": "reconnaissance_faciale_navigateur"},
+    )
+
+    porte.etat_verrou = "ouvert"
+    porte.derniere_ouverture = datetime.now(timezone.utc)
+
+    db.add(models.HistoriqueAcces(
+        porte_id=porte_id,
+        utilisateur_id=utilisateur_id,
+        methode_ouverture="reconnaissance_faciale",
+        resultat="succes",
+        date_acces=datetime.now(timezone.utc),
+    ))
+    db.commit()
+
+    logger.info("Porte %d ouverte via navigateur : %s", porte_id, nom_label)
+
+    return {
+        "autorise": True,
+        "nom": nom_label,
+        "message": f"Bonjour {nom_label} — accès accordé.",
     }
