@@ -3,23 +3,33 @@ import { useRole } from "@/hooks/useRole"
 import { type Utilisateur } from "@/types/user"
 import { UserPlus, X } from "lucide-react"
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { recupererBureaux } from "@/pages/Bureaux/services/bureau.service"
 import { FormulaireUtilisateur } from "./components/FormulaireUtilisateur"
+import { ModalEnregistrementVisage } from "./components/ModalEnregistrementVisage"
 import { TableauUtilisateurs } from "./components/TableauUtilisateurs"
 import { useAjouterUtilisateur } from "./hooks/useAjouterUtilisateur"
 import { useModifierUtilisateur } from "./hooks/useModifierUtilisateur"
 import { useSupprimerUtilisateur } from "./hooks/useSupprimerUtilisateur"
 import { useUtilisateurs } from "./hooks/useUtilisateurs"
+import { listerVisagesEnroles } from "./services/reconnaissance.service"
 import { type ValeursFormulaireUtilisateur } from "./services/utilisateur.service"
 
 export function UtilisateursPage() {
   const { entrepriseId } = useRole()
+  const qc = useQueryClient()
+
   const { data: utilisateurs = [], isLoading, error } = useUtilisateurs()
   const { data: bureaux = [] } = useQuery({
     queryKey: ["bureaux", entrepriseId],
     queryFn: recupererBureaux,
     staleTime: 1000 * 60 * 5,
+    enabled: entrepriseId !== null,
+  })
+  const { data: utilisateursEnroles = [] } = useQuery({
+    queryKey: ["visages-enroles", entrepriseId],
+    queryFn: listerVisagesEnroles,
+    staleTime: 1000 * 60 * 3,
     enabled: entrepriseId !== null,
   })
 
@@ -30,6 +40,7 @@ export function UtilisateursPage() {
   const [utilisateurSelectionne, setUtilisateurSelectionne] = useState<Utilisateur | null>(null)
   const [formulaireVisible, setFormulaireVisible] = useState(false)
   const [erreurFormulaire, setErreurFormulaire] = useState<string | null>(null)
+  const [utilisateurVisage, setUtilisateurVisage] = useState<Utilisateur | null>(null)
 
   const ouvrirAjout = () => {
     setUtilisateurSelectionne(null)
@@ -65,6 +76,9 @@ export function UtilisateursPage() {
 
   const estEnChargement = mutationAjouter.isPending || mutationModifier.isPending
 
+  const estEnrole = (userId: string) =>
+    utilisateursEnroles.some((e) => String(e.utilisateur_id) === userId)
+
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -86,7 +100,7 @@ export function UtilisateursPage() {
         )}
       </div>
 
-      {/* Formulaire (visible uniquement si ouvert) */}
+      {/* Formulaire */}
       {formulaireVisible && (
         <div className="rounded-[3px] border border-border bg-card p-6">
           <h3 className="mb-4 text-base font-semibold">
@@ -107,10 +121,7 @@ export function UtilisateursPage() {
         </div>
       )}
 
-      {/* Erreur de chargement */}
-      {error && (
-        <p className="text-sm text-destructive">{error.message}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{error.message}</p>}
 
       {/* Tableau */}
       <TableauUtilisateurs
@@ -119,8 +130,20 @@ export function UtilisateursPage() {
         loading={isLoading}
         onEdit={ouvrirModification}
         onDelete={(user) => mutationSupprimer.mutate(user.id)}
+        onGererVisage={setUtilisateurVisage}
         supprimerEnCours={mutationSupprimer.isPending}
+        utilisateursEnroles={utilisateursEnroles}
       />
+
+      {/* Modal reconnaissance faciale */}
+      {utilisateurVisage && (
+        <ModalEnregistrementVisage
+          utilisateur={utilisateurVisage}
+          estEnrole={estEnrole(utilisateurVisage.id)}
+          onFermer={() => setUtilisateurVisage(null)}
+          onSucces={() => qc.invalidateQueries({ queryKey: ["visages-enroles"] })}
+        />
+      )}
     </div>
   )
 }

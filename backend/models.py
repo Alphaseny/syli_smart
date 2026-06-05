@@ -64,6 +64,21 @@ class Utilisateur(Base):
         "Alerte", back_populates="traite_par_utilisateur", foreign_keys="[Alerte.traite_par]"
     )
     journal_systeme = relationship("JournalSysteme", back_populates="utilisateur")
+    encodages_faciaux = relationship("EncodageFacial", back_populates="utilisateur", cascade="all, delete-orphan")
+
+
+class EncodageFacial(Base):
+    """Stocke l'embedding facial (128 floats) d'un utilisateur pour l'ouverture de porte."""
+    __tablename__ = "encodages_faciaux"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entreprise_id = Column(Integer, ForeignKey("entreprises.id", ondelete="CASCADE"), nullable=False)
+    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id", ondelete="CASCADE"), nullable=False)
+    nom_label = Column(String(200), nullable=False)          # Nom affiché lors de l'identification
+    encoding = Column(JSONB, nullable=False)                  # Vecteur 128 floats (face_recognition)
+    date_creation = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    utilisateur = relationship("Utilisateur", back_populates="encodages_faciaux")
 
 
 class Equipement(Base):

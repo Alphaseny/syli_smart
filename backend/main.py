@@ -7,6 +7,7 @@ from database import Base, engine
 from routers import router
 from iot_router import iot_router
 from ws_router import ws_router
+from face_router import face_router
 import mqtt_service
 from ws_manager import lamp_ws_manager
 
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(iot_router, prefix="/api")
 app.include_router(ws_router, prefix="/api")
+app.include_router(face_router, prefix="/api")
 
 
 @app.on_event("startup")
