@@ -93,7 +93,7 @@ export default function BureauPage() {
     const valeurs: ValeursFormulaireBureau = {
       nomBureau: String(donnees.get("nomBureau") ?? "").trim(),
       etage: String(donnees.get("etage") ?? "").trim() || undefined,
-      etat: donnees.get("etat") === "actif",
+      etat: mode === "edition" ? donnees.get("etat") === "actif" : true,
     }
     if (mode === "edition" && bureauEnEdition) {
       mutationModifier.mutate({ id: bureauEnEdition.id, valeurs })
